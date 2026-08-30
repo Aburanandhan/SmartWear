@@ -1,5 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { UserProfile } from '../App'
+import {
+  CATEGORIES,
+  CategoryKey,
+  amountsToPercentages,
+  percentagesToAmounts,
+  rebalancePercentages,
+} from '../utils/budgetUtils'
 
 const BUDGET_OPTIONS = [2000, 3000, 5000, 6000, 8000, 10000]
 
@@ -10,40 +17,37 @@ interface Props {
   onBack: () => void
 }
 
-const CATEGORIES: { key: keyof UserProfile['budgetCategories']; label: string; icon: string; color: string }[] = [
-  { key: 'food', label: 'Food & Groceries', icon: '🥗', color: '#22c55e' },
-  { key: 'supplements', label: 'Supplements', icon: '💊', color: '#8b5cf6' },
-  { key: 'hydration', label: 'Hydration', icon: '💧', color: '#3b82f6' },
-  { key: 'recovery', label: 'Recovery', icon: '🧘', color: '#f59e0b' },
-  { key: 'other', label: 'Other / Gear', icon: '🏋️', color: '#64748b' },
-]
-
-function getDefaultSplit(budget: number): UserProfile['budgetCategories'] {
-  return {
-    food: Math.round(budget * 0.53),
-    supplements: Math.round(budget * 0.13),
-    hydration: Math.round(budget * 0.1),
-    recovery: Math.round(budget * 0.14),
-    other: Math.round(budget * 0.1),
-  }
-}
-
 export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props) {
-  const [customCats, setCustomCats] = useState(profile.budgetCategories)
+  const [percentages, setPercentages] = useState<Record<CategoryKey, number>>(() => {
+    return amountsToPercentages(profile.budgetCategories, profile.monthlyBudget)
+  })
 
-  const total = Object.values(customCats).reduce((a, b) => a + b, 0)
+  // Ensure state stays in sync if monthlyBudget or budgetCategories props update
+  useEffect(() => {
+    const pcts = amountsToPercentages(profile.budgetCategories, profile.monthlyBudget)
+    const currentSum = Object.values(percentages).reduce((a, b) => a + b, 0)
+    if (currentSum !== 100) {
+      setPercentages(pcts)
+    }
+  }, [profile.monthlyBudget])
+
+  const customCats = percentagesToAmounts(percentages, profile.monthlyBudget)
+  const totalAmount = Object.values(customCats).reduce((a, b) => a + b, 0)
+  const totalPct = Object.values(percentages).reduce((a, b) => a + b, 0)
 
   const handleBudgetSelect = (b: number) => {
-    const split = getDefaultSplit(b)
-    setCustomCats(split)
-    onChange({ monthlyBudget: b, budgetCategories: split })
+    const updatedAmounts = percentagesToAmounts(percentages, b)
+    onChange({ monthlyBudget: b, budgetCategories: updatedAmounts })
   }
 
-  const handleCatChange = (key: keyof typeof customCats, val: number) => {
-    const updated = { ...customCats, [key]: val }
-    setCustomCats(updated)
-    onChange({ budgetCategories: updated })
+  const handlePctChange = (key: CategoryKey, val: number) => {
+    const updatedPcts = rebalancePercentages(percentages, key, val)
+    setPercentages(updatedPcts)
+    const updatedAmounts = percentagesToAmounts(updatedPcts, profile.monthlyBudget)
+    onChange({ budgetCategories: updatedAmounts })
   }
+
+  const isAllocated100Pct = totalPct === 100 && totalAmount === profile.monthlyBudget
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
@@ -91,16 +95,30 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
           </div>
 
           {/* Category sliders */}
-          <p className="text-sm font-semibold mb-3" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
-            Allocate by category
-            <span className="ml-2 text-xs font-normal" style={{ color: total === profile.monthlyBudget ? '#16a34a' : '#ef4444' }}>
-              ₹{total.toLocaleString()} / ₹{profile.monthlyBudget.toLocaleString()}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
+              Allocate by category
+            </p>
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 transition-all"
+              style={{
+                background: isAllocated100Pct ? '#f0fdf4' : '#fef2f2',
+                color: isAllocated100Pct ? '#16a34a' : '#ef4444',
+                border: `1px solid ${isAllocated100Pct ? '#bbf7d0' : '#fecaca'}`,
+              }}
+            >
+              <span>{isAllocated100Pct ? '✓' : '⚠️'}</span>
+              <span>{isAllocated100Pct ? '100% allocated' : `${totalPct}% allocated`}</span>
+              <span className="font-normal opacity-80">
+                (₹{totalAmount.toLocaleString()} / ₹{profile.monthlyBudget.toLocaleString()})
+              </span>
             </span>
-          </p>
+          </div>
 
           <div className="space-y-4">
             {CATEGORIES.map((cat) => {
-              const pct = Math.round((customCats[cat.key] / profile.monthlyBudget) * 100)
+              const pct = percentages[cat.key] ?? 0
+              const amt = customCats[cat.key] ?? 0
               return (
                 <div key={cat.key}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -109,19 +127,21 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
                       <span className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif', color: '#0f172a' }}>{cat.label}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: '#64748b', fontFamily: 'JetBrains Mono, monospace' }}>{pct}%</span>
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: '#f1f5f9', color: '#475569', fontFamily: 'JetBrains Mono, monospace' }}>
+                        {pct}%
+                      </span>
                       <span className="font-mono-data text-sm font-bold" style={{ color: cat.color }}>
-                        ₹{customCats[cat.key].toLocaleString()}
+                        ₹{amt.toLocaleString()}
                       </span>
                     </div>
                   </div>
                   <input
                     type="range"
                     min={0}
-                    max={profile.monthlyBudget}
-                    step={100}
-                    value={customCats[cat.key]}
-                    onChange={(e) => handleCatChange(cat.key, +e.target.value)}
+                    max={100}
+                    step={1}
+                    value={pct}
+                    onChange={(e) => handlePctChange(cat.key, Number(e.target.value))}
                     className="w-full h-2 rounded-full appearance-none cursor-pointer"
                     style={{ accentColor: cat.color }}
                   />
@@ -141,7 +161,11 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
           </p>
         </div>
 
-        <button onClick={onNext} className="btn-primary w-full py-3.5 text-base">
+        <button
+          onClick={onNext}
+          disabled={!isAllocated100Pct}
+          className="btn-primary w-full py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           Launch Dashboard →
         </button>
       </div>

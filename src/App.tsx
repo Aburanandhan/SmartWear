@@ -36,7 +36,7 @@ const DEFAULT_PROFILE: UserProfile = {
   activityLevel: 'active',
   primaryExercise: 'Running',
   monthlyBudget: 6000,
-  budgetCategories: { food: 3000, supplements: 1000, hydration: 600, recovery: 800, other: 600 },
+  budgetCategories: { food: 3000, supplements: 1200, hydration: 600, recovery: 600, other: 600 },
   dietType: 'vegetarian',
   foodStyle: 'south-indian',
   excludedFoods: ['Peanuts'],

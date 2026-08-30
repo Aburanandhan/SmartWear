@@ -30,10 +30,10 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
       primaryExercise: profileData.primary_exercise || 'Running',
       monthlyBudget: budgetData?.monthly_budget ? Number(budgetData.monthly_budget) : 6000,
       budgetCategories: budgetData?.category_allocations || {
-        food: 3200,
-        supplements: 800,
+        food: 3000,
+        supplements: 1200,
         hydration: 600,
-        recovery: 800,
+        recovery: 600,
         other: 600,
       },
       dietType: profileData.diet_type || 'vegetarian',
