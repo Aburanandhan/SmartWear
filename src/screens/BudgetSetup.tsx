@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { UserProfile } from '../App'
 import {
   CATEGORIES,
   CategoryKey,
   amountsToPercentages,
   percentagesToAmounts,
-  rebalancePercentages,
+  validateBudgetAllocation,
 } from '../utils/budgetUtils'
 
 const BUDGET_OPTIONS = [2000, 3000, 5000, 6000, 8000, 10000]
@@ -21,33 +21,40 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
   const [percentages, setPercentages] = useState<Record<CategoryKey, number>>(() => {
     return amountsToPercentages(profile.budgetCategories, profile.monthlyBudget)
   })
-
-  // Ensure state stays in sync if monthlyBudget or budgetCategories props update
-  useEffect(() => {
-    const pcts = amountsToPercentages(profile.budgetCategories, profile.monthlyBudget)
-    const currentSum = Object.values(percentages).reduce((a, b) => a + b, 0)
-    if (currentSum !== 100) {
-      setPercentages(pcts)
-    }
-  }, [profile.monthlyBudget])
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   const customCats = percentagesToAmounts(percentages, profile.monthlyBudget)
   const totalAmount = Object.values(customCats).reduce((a, b) => a + b, 0)
   const totalPct = Object.values(percentages).reduce((a, b) => a + b, 0)
 
   const handleBudgetSelect = (b: number) => {
+    setValidationError(null)
     const updatedAmounts = percentagesToAmounts(percentages, b)
     onChange({ monthlyBudget: b, budgetCategories: updatedAmounts })
   }
 
-  const handlePctChange = (key: CategoryKey, val: number) => {
-    const updatedPcts = rebalancePercentages(percentages, key, val)
+  const handlePctChange = (key: CategoryKey, rawVal: number) => {
+    setValidationError(null)
+    const val = Math.max(0, Math.min(100, Math.round(rawVal)))
+    const updatedPcts = { ...percentages, [key]: val }
     setPercentages(updatedPcts)
+
+    // Update parent profile with current rupee allocations
     const updatedAmounts = percentagesToAmounts(updatedPcts, profile.monthlyBudget)
     onChange({ budgetCategories: updatedAmounts })
   }
 
-  const isAllocated100Pct = totalPct === 100 && totalAmount === profile.monthlyBudget
+  const handleContinue = () => {
+    const { valid, error } = validateBudgetAllocation(percentages, profile.monthlyBudget)
+
+    if (!valid) {
+      setValidationError(error)
+      return
+    }
+
+    setValidationError(null)
+    onNext()
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
@@ -94,7 +101,7 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
             ))}
           </div>
 
-          {/* Category sliders */}
+          {/* Category sliders header with allocation indicator */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
               Allocate by category
@@ -102,19 +109,26 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
             <span
               className="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 transition-all"
               style={{
-                background: isAllocated100Pct ? '#f0fdf4' : '#fef2f2',
-                color: isAllocated100Pct ? '#16a34a' : '#ef4444',
-                border: `1px solid ${isAllocated100Pct ? '#bbf7d0' : '#fecaca'}`,
+                background: totalPct === 100 ? '#f0fdf4' : '#fef2f2',
+                color: totalPct === 100 ? '#16a34a' : '#ef4444',
+                border: `1px solid ${totalPct === 100 ? '#bbf7d0' : '#fecaca'}`,
               }}
             >
-              <span>{isAllocated100Pct ? '✓' : '⚠️'}</span>
-              <span>{isAllocated100Pct ? '100% allocated' : `${totalPct}% allocated`}</span>
+              <span>{totalPct === 100 ? '✓' : '⚠️'}</span>
+              <span>
+                {totalPct === 100
+                  ? '100% allocated'
+                  : totalPct < 100
+                  ? `Allocation must total 100%. Current: ${totalPct}%`
+                  : `Allocation cannot exceed 100%. Current: ${totalPct}%`}
+              </span>
               <span className="font-normal opacity-80">
                 (₹{totalAmount.toLocaleString()} / ₹{profile.monthlyBudget.toLocaleString()})
               </span>
             </span>
           </div>
 
+          {/* Independent Category Sliders */}
           <div className="space-y-4">
             {CATEGORIES.map((cat) => {
               const pct = percentages[cat.key] ?? 0
@@ -146,13 +160,21 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
                     style={{ accentColor: cat.color }}
                   />
                   <div className="h-1.5 rounded-full mt-1" style={{ background: '#f1f5f9' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: cat.color }} />
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, background: cat.color }} />
                   </div>
                 </div>
               )
             })}
           </div>
         </div>
+
+        {/* Validation Error Banner when validation fails on Continue */}
+        {validationError && (
+          <div className="rounded-xl p-4 mb-4 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold fade-in">
+            <span className="text-base">⚠️</span>
+            <p style={{ fontFamily: 'Inter, sans-serif' }}>{validationError}</p>
+          </div>
+        )}
 
         <div className="rounded-xl p-4 mb-4 flex items-start gap-3" style={{ background: '#fef3c7', border: '1px solid #fde68a' }}>
           <span className="text-base">💡</span>
@@ -162,9 +184,8 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
         </div>
 
         <button
-          onClick={onNext}
-          disabled={!isAllocated100Pct}
-          className="btn-primary w-full py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleContinue}
+          className="btn-primary w-full py-3.5 text-base"
         >
           Launch Dashboard →
         </button>
