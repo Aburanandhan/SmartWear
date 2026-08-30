@@ -1,17 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { SensorReading, SensorSource, MotionState } from '../services/sensor/types'
-import { simulatorSensorSource } from '../services/sensor/SimulatorSensorSource'
 import { esp32SensorSource } from '../services/sensor/ESP32SensorSource'
+import { simulatorSensorSource } from '../services/sensor/SimulatorSensorSource'
 import { supabase } from '../lib/supabase'
 
-export function useSensorData(userId?: string, preferPhysical = false) {
-  const [activeSource, setActiveSource] = useState<SensorSource>(
-    preferPhysical && esp32SensorSource.isConnected() ? esp32SensorSource : simulatorSensorSource
-  )
+export function useSensorData(userId?: string) {
+  const [activeSource, setActiveSource] = useState<SensorSource>(esp32SensorSource)
   const [reading, setReading] = useState<SensorReading>(() => activeSource.getCurrentReading())
   const [history, setHistory] = useState<SensorReading[]>([activeSource.getCurrentReading()])
 
-  // Select active source
+  // Select active source (defaulting to ESP32 physical wearable source)
   const switchSource = useCallback((usePhysical: boolean) => {
     if (usePhysical) {
       setActiveSource(esp32SensorSource)
@@ -20,10 +18,10 @@ export function useSensorData(userId?: string, preferPhysical = false) {
     }
   }, [])
 
-  // Push reading to Supabase if user is logged in
+  // Push reading to Supabase if user is logged in AND real physical sensor is connected with real data
   const persistReadingToSupabase = useCallback(
     async (newReading: SensorReading) => {
-      if (!userId) return
+      if (!userId || activeSource.isSimulated || !activeSource.isConnected() || newReading.heartRate === 0) return
 
       try {
         await supabase.from('sensor_readings').insert({
@@ -41,7 +39,7 @@ export function useSensorData(userId?: string, preferPhysical = false) {
         // Silent catch for stream inserts
       }
     },
-    [userId]
+    [userId, activeSource]
   )
 
   useEffect(() => {
@@ -50,9 +48,9 @@ export function useSensorData(userId?: string, preferPhysical = false) {
       setReading(newReading)
       setHistory((prev) => [...prev.slice(-29), newReading])
       persistReadingToSupabase(newReading)
-    }, 2500)
+    })
 
-    // 2. Subscribe to Supabase Realtime for remote sensor updates if logged in
+    // 2. Subscribe to Supabase Realtime for remote physical sensor updates if logged in
     let realtimeChannel: any = null
     if (userId) {
       realtimeChannel = supabase
@@ -74,6 +72,9 @@ export function useSensorData(userId?: string, preferPhysical = false) {
               workoutActive: row.workout_active,
               timestamp: row.timestamp,
             }
+
+            // Update real sensor state
+            esp32SensorSource.updateRealReading(realtimeReading)
             setReading(realtimeReading)
             setHistory((prev) => [...prev.slice(-29), realtimeReading])
           }

@@ -56,7 +56,7 @@ export default function Activity({ profile, userId, reading, onWorkoutToggle }: 
       durationSeconds: elapsedSeconds,
       steps: Math.max(300, Math.round(elapsedSeconds * 2.2)),
       calories: Math.round(elapsedSeconds * 0.18),
-      avgHr: reading.heartRate || 142,
+      avgHr: reading.heartRate || 0,
     }
 
     const saved = await saveWorkout(newWorkout)

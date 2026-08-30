@@ -76,13 +76,13 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
         {/* Wearable status pill */}
         <div className="mx-3 mt-4 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-2">
-            <span className="pulse-dot w-2 h-2 rounded-full" style={{ background: sensorSource.isSimulated ? '#fbbf24' : '#4ade80' }}></span>
+            <span className="w-2 h-2 rounded-full" style={{ background: sensorSource.isConnected() ? '#4ade80' : '#94a3b8' }}></span>
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
               {sensorSource.name}
             </span>
           </div>
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
-            {sensorSource.isSimulated ? 'Simulator Mode · Active' : 'ESP32 Belt · BLE Connected'}
+            {sensorSource.isConnected() ? 'ESP32 Belt · BLE Connected' : 'Waiting for live sensor...'}
           </p>
         </div>
 

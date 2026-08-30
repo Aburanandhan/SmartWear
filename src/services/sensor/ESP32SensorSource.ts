@@ -1,7 +1,9 @@
 import type { SensorReading, SensorSource, MotionState } from './types'
 
 export class ESP32SensorSource implements SensorSource {
-  public readonly name = 'WEARABLE CONNECTED'
+  public get name(): string {
+    return this.connected ? 'WEARABLE CONNECTED' : 'No live sensor connected'
+  }
   public readonly isSimulated = false
 
   private connected = false
@@ -11,11 +13,11 @@ export class ESP32SensorSource implements SensorSource {
   private lastReading: SensorReading = {
     deviceId: 'ESP32_PHYSICAL_BELT_01',
     timestamp: new Date().toISOString(),
-    temperature: 36.8,
-    heartRate: 78,
-    spo2: 98,
+    temperature: 0,
+    heartRate: 0,
+    spo2: 0,
     motion: 'REST',
-    steps: 7200,
+    steps: 0,
     workoutActive: false,
   }
 
@@ -23,12 +25,28 @@ export class ESP32SensorSource implements SensorSource {
     return this.connected
   }
 
+  public updateRealReading(reading: Partial<SensorReading>) {
+    this.connected = true
+    this.lastReading = {
+      ...this.lastReading,
+      ...reading,
+      timestamp: new Date().toISOString(),
+    }
+    this.listeners.forEach((cb) => cb(this.getCurrentReading()))
+  }
+
   public setMotionState(state: MotionState) {
-    this.lastReading.motion = state
+    if (this.connected) {
+      this.lastReading.motion = state
+      this.listeners.forEach((cb) => cb(this.getCurrentReading()))
+    }
   }
 
   public setWorkoutActive(active: boolean) {
-    this.lastReading.workoutActive = active
+    if (this.connected) {
+      this.lastReading.workoutActive = active
+      this.listeners.forEach((cb) => cb(this.getCurrentReading()))
+    }
   }
 
   public getCurrentReading(): SensorReading {
@@ -50,6 +68,7 @@ export class ESP32SensorSource implements SensorSource {
         optionalServices: ['heart_rate', 'health_thermometer', 'battery_service'],
       })
       this.connected = true
+      this.listeners.forEach((cb) => cb(this.getCurrentReading()))
       return true
     } catch (err) {
       console.error('BLE connection attempt:', err)
