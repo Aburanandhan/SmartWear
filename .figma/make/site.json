@@ -1,0 +1,10 @@
+{
+  "description": "Track and manage your health, fitness, nutrition, and budget with personalized insights and real-time monitoring for optimal wellness.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
