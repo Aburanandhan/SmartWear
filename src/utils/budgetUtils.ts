@@ -113,3 +113,43 @@ export function validateBudgetAllocation(
     error: null,
   }
 }
+
+/**
+ * Validates category rupee amounts directly against the selected monthly budget.
+ */
+export function validateCategoryAmounts(
+  amounts: Record<CategoryKey, number>,
+  budget: number
+): { valid: boolean; totalAmount: number; totalPct: number; error: string | null } {
+  const keys: CategoryKey[] = ['food', 'supplements', 'hydration', 'recovery', 'other']
+  const totalAmount = keys.reduce((sum, k) => sum + (amounts[k] || 0), 0)
+  const totalPct = budget > 0 ? Math.round((totalAmount / budget) * 100) : 0
+
+  if (totalAmount < budget) {
+    const remaining = budget - totalAmount
+    return {
+      valid: false,
+      totalAmount,
+      totalPct,
+      error: `₹${remaining.toLocaleString()} remaining to allocate`,
+    }
+  }
+
+  if (totalAmount > budget) {
+    const exceeded = totalAmount - budget
+    return {
+      valid: false,
+      totalAmount,
+      totalPct,
+      error: `₹${exceeded.toLocaleString()} over budget`,
+    }
+  }
+
+  return {
+    valid: true,
+    totalAmount,
+    totalPct,
+    error: null,
+  }
+}
+
