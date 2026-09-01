@@ -20,4 +20,5 @@ export interface SensorSource {
   getCurrentReading: () => SensorReading
   setMotionState: (state: MotionState) => void
   setWorkoutActive: (active: boolean) => void
+  isConnected: () => boolean
 }

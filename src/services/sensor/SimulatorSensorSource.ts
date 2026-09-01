@@ -23,6 +23,10 @@ export class SimulatorSensorSource implements SensorSource {
     this.emitCurrent()
   }
 
+  public isConnected(): boolean {
+    return false
+  }
+
   public getCurrentReading(): SensorReading {
     return {
       deviceId: 'ESP32_SIMULATED_BELT',

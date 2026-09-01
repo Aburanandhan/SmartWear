@@ -133,9 +133,11 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
             {CATEGORIES.map((cat) => {
               const pct = percentages[cat.key] ?? 0
               const amt = customCats[cat.key] ?? 0
+              const trackFill = `linear-gradient(to right, ${cat.color} 0%, ${cat.color} ${pct}%, #e2e8f0 ${pct}%, #e2e8f0 100%)`
+
               return (
                 <div key={cat.key}>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-base">{cat.icon}</span>
                       <span className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif', color: '#0f172a' }}>{cat.label}</span>
@@ -149,18 +151,21 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
                       </span>
                     </div>
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={pct}
-                    onChange={(e) => handlePctChange(cat.key, Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                    style={{ accentColor: cat.color }}
-                  />
-                  <div className="h-1.5 rounded-full mt-1" style={{ background: '#f1f5f9' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, background: cat.color }} />
+                  <div className="relative flex items-center">
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={pct}
+                      onChange={(e) => handlePctChange(cat.key, Number(e.target.value))}
+                      aria-label={`${cat.label} allocation percentage`}
+                      className="budget-slider"
+                      style={{
+                        '--slider-color': cat.color,
+                        '--track-bg': trackFill,
+                      } as React.CSSProperties}
+                    />
                   </div>
                 </div>
               )
