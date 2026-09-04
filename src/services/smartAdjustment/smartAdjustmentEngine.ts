@@ -1,4 +1,4 @@
-import type { EngineInput, SmartAdjustment } from './types'
+import type { EngineInput, SmartAdjustment, BudgetAdjustment } from './types'
 import { DEFAULT_THRESHOLDS, CATEGORY_LABELS } from './rules'
 import type { CategoryKey } from '../../utils/budgetUtils'
 import { supabase } from '../../lib/supabase'
@@ -58,7 +58,7 @@ export function evaluateSmartAdjustment(
   const hydrationDetail = `Add ${addMl} ml to today's hydration target.`
 
   // 3. Financial Recommendation (Only generated when Smart Reallocation is enabled)
-  let budgetAdjustment = null
+  let budgetAdjustment: BudgetAdjustment | null = null
 
   if (smartReallocation) {
     const allocations = profile.budgetCategories || {
@@ -77,7 +77,8 @@ export function evaluateSmartAdjustment(
       other: 0,
     }
 
-    (input.expenses || []).forEach((e) => {
+    const expensesList = input.expenses || []
+    expensesList.forEach((e) => {
       if (categorySpentMap[e.category] !== undefined) {
         categorySpentMap[e.category] += Number(e.amount) || 0
       }

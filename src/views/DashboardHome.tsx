@@ -136,6 +136,53 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
     setTimeout(() => setOptimizationAppliedToast(false), 4500)
   }
 
+  // Evaluate Smart Adjustment safely at top-level
+  const pendingAdjustment = profile ? evaluateSmartAdjustment({
+    sensorReading: {
+      heartRate: 158,
+      temperature: 37.2,
+      spo2: 98,
+      motion: 'HIGH_INTENSITY',
+      steps: 1200,
+      workoutActive: true,
+      deviceId: 'live-stream',
+      timestamp: new Date().toISOString(),
+    },
+    workoutActive: true,
+    profile,
+    hydrationToday,
+    expenses,
+  }) : null
+
+  const handleApplyDashboardAdjustment = async (appliedAdj: SmartAdjustment) => {
+    const updatedAdj: SmartAdjustment = { ...appliedAdj, status: 'applied', appliedAt: new Date().toISOString() }
+    if (appliedAdj.hydrationAdjustment?.additionalMl) {
+      await handleAddWater(appliedAdj.hydrationAdjustment.additionalMl)
+    }
+    if (appliedAdj.smartReallocationEnabled && appliedAdj.budgetAdjustment && onUpdateProfile && profile) {
+      const alloc = profile.budgetCategories || { food: 4550, supplements: 2400, hydration: 1100, recovery: 1000, other: 950 }
+      const fromCat = appliedAdj.budgetAdjustment.fromCategory
+      const toCat = appliedAdj.budgetAdjustment.toCategory
+      const amt = appliedAdj.budgetAdjustment.amount
+      onUpdateProfile({
+        budgetCategories: {
+          ...alloc,
+          [fromCat]: Math.max(0, (alloc[fromCat] || 0) - amt),
+          [toCat]: (alloc[toCat] || 0) + amt,
+        },
+      })
+    }
+    await saveAdjustmentState(updatedAdj, userId)
+  }
+
+  if (!profile) {
+    return (
+      <div className="card p-8 text-center text-slate-500">
+        <p className="font-bold text-base">Loading your fitness plan...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Toast notification on successful optimization */}
@@ -197,52 +244,14 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
       </div>
 
       {/* PENDING SMART ADJUSTMENT CARD */}
-      {(() => {
-        const adj = evaluateSmartAdjustment({
-          sensorReading: {
-            heartRate: 158,
-            temperature: 37.2,
-            spo2: 98,
-            motion: 'HIGH_INTENSITY',
-            steps: 1200,
-            workoutActive: true,
-            deviceId: 'live-stream',
-            timestamp: new Date().toISOString(),
-          },
-          workoutActive: true,
-          profile,
-          hydrationToday,
-          expenses,
-        })
-        if (!adj) return null
-        return (
-          <SmartAdjustmentCard
-            adjustment={adj}
-            profile={profile}
-            userId={userId}
-            onApply={async (appliedAdj) => {
-              const updatedAdj: SmartAdjustment = { ...appliedAdj, status: 'applied', appliedAt: new Date().toISOString() }
-              if (appliedAdj.hydrationAdjustment?.additionalMl) {
-                await handleAddWater(appliedAdj.hydrationAdjustment.additionalMl)
-              }
-              if (appliedAdj.smartReallocationEnabled && appliedAdj.budgetAdjustment && onUpdateProfile) {
-                const alloc = profile.budgetCategories || { food: 4550, supplements: 2400, hydration: 1100, recovery: 1000, other: 950 }
-                const fromCat = appliedAdj.budgetAdjustment.fromCategory
-                const toCat = appliedAdj.budgetAdjustment.toCategory
-                const amt = appliedAdj.budgetAdjustment.amount
-                onUpdateProfile({
-                  budgetCategories: {
-                    ...alloc,
-                    [fromCat]: Math.max(0, (alloc[fromCat] || 0) - amt),
-                    [toCat]: (alloc[toCat] || 0) + amt,
-                  },
-                })
-              }
-              await saveAdjustmentState(updatedAdj, userId)
-            }}
-          />
-        )
-      })()}
+      {pendingAdjustment && (
+        <SmartAdjustmentCard
+          adjustment={pendingAdjustment}
+          profile={profile}
+          userId={userId}
+          onApply={handleApplyDashboardAdjustment}
+        />
+      )}
 
       {/* 3. TODAY'S PLAN & 4. PRIMARY CTA */}
       <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>

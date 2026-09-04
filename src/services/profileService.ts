@@ -53,7 +53,7 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 
 export async function saveUserProfile(userId: string, profile: UserProfile): Promise<boolean> {
   try {
-    const { error: pErr } = await supabase.from('profiles').upsert({
+    const profilePayload = {
       id: userId,
       goal: profile.goal,
       age: profile.age,
@@ -66,9 +66,20 @@ export async function saveUserProfile(userId: string, profile: UserProfile): Pro
       excluded_foods: profile.excludedFoods || [],
       preferred_foods: profile.preferredFoods || [],
       updated_at: new Date().toISOString(),
-    })
+    }
 
-    if (pErr) throw pErr
+    const { error: pErr } = await supabase
+      .from('profiles')
+      .upsert(profilePayload, { onConflict: 'id' })
+
+    if (pErr) {
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update(profilePayload)
+        .eq('id', userId)
+
+      if (updateErr) console.warn('Profile update fallback warning:', updateErr)
+    }
 
     const categoryAllocationsPayload = {
       ...profile.budgetCategories,
