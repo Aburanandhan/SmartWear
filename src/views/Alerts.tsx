@@ -138,7 +138,7 @@ export default function Alerts({ profile, reading, userId, onUpdateProfile, onAl
               Smart Adjustments & System Alerts
             </h2>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 uppercase">
-              Actionable USP
+              Real-time Engine
             </span>
           </div>
           <p className="text-sm text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>

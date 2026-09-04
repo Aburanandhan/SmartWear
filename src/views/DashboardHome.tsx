@@ -396,9 +396,7 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-200/80 text-amber-900 uppercase tracking-wide" style={{ fontFamily: 'Inter, sans-serif' }}>
-                USP
-              </span>
+
             </div>
 
             {/* Description */}

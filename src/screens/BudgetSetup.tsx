@@ -117,9 +117,7 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
         {/* 1. SCREEN TITLE */}
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-800 text-xs font-bold mb-2">
-            <span>⚡ SmartWear USP</span>
-            <span>·</span>
-            <span>Smart Adaptive Budgeting</span>
+            <span>⚡ Adaptive Budgeting</span>
           </div>
           <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '2rem', color: '#0f172a', lineHeight: '1.2' }}>
             Smart Fitness Budget
