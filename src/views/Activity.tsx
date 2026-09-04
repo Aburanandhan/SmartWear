@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '../App'
+import { GOAL_LABELS } from '../App'
 import type { SensorReading } from '../services/sensor/types'
 import { fetchWorkoutHistory, saveWorkout, type WorkoutSession } from '../services/workoutService'
 
@@ -86,7 +87,7 @@ export default function Activity({ profile, userId, reading, onWorkoutToggle }: 
               </h2>
             </div>
             <p className="text-sm text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Target exercise: {profile.primaryExercise} · Goal: {profile.goal}
+              Target exercise: {profile.primaryExercise} · Goal: {GOAL_LABELS[profile.goal] || profile.goal}
             </p>
           </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '../App'
+import { GOAL_LABELS } from '../App'
 import type { DashView } from '../screens/Dashboard'
 import { evaluateWellnessStatus } from '../lib/wellness-engine'
 import { rankMealRecommendations } from '../lib/recommendation-engine'
@@ -111,8 +112,8 @@ export default function DashboardHome({ profile, userId, onNavigate }: Props) {
             <span className="text-xl">🎯</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="font-semibold text-lg text-slate-900 capitalize" style={{ fontFamily: 'Sora, sans-serif' }}>
-              {profile.goal}
+            <span className="font-semibold text-lg text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {GOAL_LABELS[profile.goal] || profile.goal}
             </span>
           </div>
           <div className="mt-2 text-xs text-slate-500 font-medium flex items-center justify-between">

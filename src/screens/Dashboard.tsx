@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '../App'
+import { GOAL_LABELS } from '../App'
 import DashboardHome from '../views/DashboardHome'
 import LiveMonitoring from '../views/LiveMonitoring'
 import Activity from '../views/Activity'
@@ -118,7 +119,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
               <p style={{ fontFamily: 'Sora, sans-serif', fontSize: 12, fontWeight: 600, color: 'white' }}>
                 {isDemoMode ? 'Demo User' : 'User Profile'}
               </p>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>{profile.goal} · {profile.primaryExercise}</p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>{GOAL_LABELS[profile.goal] || profile.goal} · {profile.primaryExercise}</p>
             </div>
           </button>
           <button onClick={onLogout} className="w-full mt-2 px-3 py-2 rounded-lg text-xs font-medium text-center transition-all hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'Inter, sans-serif' }}>

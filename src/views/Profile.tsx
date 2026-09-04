@@ -11,9 +11,9 @@ interface Props {
 
 const GOALS: { id: Goal; label: string }[] = [
   { id: 'athlete', label: 'Athlete' },
-  { id: 'gym', label: 'Gym & Fitness' },
+  { id: 'gym', label: 'Muscle & Fitness' },
   { id: 'general', label: 'General Health' },
-  { id: 'strength', label: 'Strength Building' },
+  { id: 'strength', label: 'Strength' },
   { id: 'weight', label: 'Weight Management' },
   { id: 'endurance', label: 'Endurance' },
 ]

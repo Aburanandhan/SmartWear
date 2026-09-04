@@ -13,6 +13,15 @@ import type { DietType, FoodStyle } from './data/foods'
 export type Screen = 'landing' | 'goal' | 'details' | 'food-preferences' | 'budget' | 'dashboard'
 export type Goal = 'athlete' | 'gym' | 'general' | 'strength' | 'weight' | 'endurance'
 
+export const GOAL_LABELS: Record<Goal, string> = {
+  athlete: 'Athlete',
+  gym: 'Muscle & Fitness',
+  general: 'General Health',
+  strength: 'Strength',
+  weight: 'Weight Management',
+  endurance: 'Endurance',
+}
+
 export interface UserProfile {
   goal: Goal
   age: number

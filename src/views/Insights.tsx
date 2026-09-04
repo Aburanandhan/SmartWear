@@ -1,5 +1,6 @@
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { UserProfile } from '../App'
+import { GOAL_LABELS } from '../App'
 import type { SensorReading } from '../services/sensor/types'
 
 const weeklyHealth = [
@@ -115,7 +116,7 @@ export default function Insights({ profile }: Props) {
             { icon: '📈', title: 'Activity improving', desc: 'Your weekly step count has increased 26% over the last month. Great trend!', color: '#0d9488', bg: '#ccfbf1' },
             { icon: '❤️', title: 'Heart rate variability', desc: 'Resting HR dropped from 82 to 74 BPM this month — a sign of improving cardiovascular fitness.', color: '#ef4444', bg: '#fee2e2' },
             { icon: '💧', title: 'Hydration opportunity', desc: 'Your session intensity increases hydration needs. Consider tracking water intake more closely.', color: '#3b82f6', bg: '#dbeafe' },
-            { icon: '🥗', title: 'Nutrition on track', desc: `Your ${profile.goal} goal plan is meeting protein targets 5 out of 7 days this week.`, color: '#f59e0b', bg: '#fef3c7' },
+            { icon: '🥗', title: 'Nutrition on track', desc: `Your ${GOAL_LABELS[profile.goal] || profile.goal} goal plan is meeting protein targets 5 out of 7 days this week.`, color: '#f59e0b', bg: '#fef3c7' },
             { icon: '💰', title: 'Budget pacing', desc: 'At current spending rate, you\'ll end the month at ₹5,100 — within your ₹6,000 budget.', color: '#8b5cf6', bg: '#ede9fe' },
             { icon: '🛌', title: 'Recovery recommended', desc: 'You\'ve had 4 consecutive high-intensity days. Consider an active recovery session today.', color: '#22c55e', bg: '#dcfce7' },
           ].map((ins) => (

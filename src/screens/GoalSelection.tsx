@@ -2,9 +2,9 @@ import type { Goal } from '../App'
 
 const GOALS: { id: Goal; label: string; icon: string; desc: string; color: string; bg: string }[] = [
   { id: 'athlete', label: 'Athlete', icon: '🏅', desc: 'Competition training, peak performance', color: '#0d9488', bg: '#ccfbf1' },
-  { id: 'gym', label: 'Gym & Fitness', icon: '💪', desc: 'Regular gym sessions, muscle tone', color: '#3b82f6', bg: '#dbeafe' },
+  { id: 'gym', label: 'Muscle & Fitness', icon: '💪', desc: 'Regular gym sessions, muscle tone', color: '#3b82f6', bg: '#dbeafe' },
   { id: 'general', label: 'General Health', icon: '🌿', desc: 'Stay active, feel better daily', color: '#22c55e', bg: '#dcfce7' },
-  { id: 'strength', label: 'Strength Building', icon: '🏋️', desc: 'Progressive overload, power gains', color: '#8b5cf6', bg: '#ede9fe' },
+  { id: 'strength', label: 'Strength', icon: '🏋️', desc: 'Progressive overload, power gains', color: '#8b5cf6', bg: '#ede9fe' },
   { id: 'weight', label: 'Weight Management', icon: '⚖️', desc: 'Healthy weight loss or maintenance', color: '#f59e0b', bg: '#fef3c7' },
   { id: 'endurance', label: 'Endurance', icon: '🚴', desc: 'Cardio, stamina, long distances', color: '#ef4444', bg: '#fee2e2' },
 ]
@@ -36,7 +36,7 @@ export default function GoalSelection({ value, onChange, onNext, onBack }: Props
 
       <div className="w-full max-w-2xl fade-in">
         <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.875rem', color: '#0f172a', marginBottom: '0.5rem' }}>
-          What is your primary goal?
+          Primary Goal
         </h2>
         <p className="mb-8" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
           We'll personalize your fitness, nutrition, and monitoring around your goal.

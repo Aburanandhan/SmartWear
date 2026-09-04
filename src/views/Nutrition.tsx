@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { UserProfile } from '../App'
+import { GOAL_LABELS } from '../App'
 import type { SensorReading } from '../services/sensor/types'
 import { fetchUserExpenses, type ExpenseItem } from '../services/budgetService'
 import {
@@ -91,7 +92,7 @@ export default function Nutrition({ profile, reading, userId }: Props) {
               </span>
             </div>
             <p className="text-xs text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Dynamic food ranking linked to remaining budget · Diet: <span className="font-semibold text-slate-800 capitalize">{profile.dietType}</span> · Goal: <span className="font-semibold text-slate-800 capitalize">{profile.goal}</span>
+              Dynamic food ranking linked to remaining budget · Diet: <span className="font-semibold text-slate-800 capitalize">{profile.dietType}</span> · Goal: <span className="font-semibold text-slate-800">{GOAL_LABELS[profile.goal] || profile.goal}</span>
             </p>
           </div>
 
@@ -347,7 +348,7 @@ export default function Nutrition({ profile, reading, userId }: Props) {
             <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
               <span className="font-bold text-teal-700 block">STEP 3</span>
               <p className="font-semibold text-slate-900">Goal & Activity</p>
-              <p className="text-slate-500">Evaluated against {profile.goal} goal & live {reading.motion} state.</p>
+              <p className="text-slate-500">Evaluated against {GOAL_LABELS[profile.goal] || profile.goal} goal & live {reading.motion} state.</p>
             </div>
             <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
               <span className="font-bold text-teal-700 block">STEP 4</span>
