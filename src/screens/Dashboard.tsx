@@ -163,6 +163,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
               profile={profile}
               userId={userId || undefined}
               onNavigate={setView}
+              onUpdateProfile={onUpdateProfile}
             />
           )}
           {view === 'live' && (

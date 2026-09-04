@@ -2,48 +2,29 @@ import { useState, useEffect } from 'react'
 import type { UserProfile } from '../App'
 import { GOAL_LABELS } from '../App'
 import type { DashView } from '../screens/Dashboard'
-import { evaluateWellnessStatus } from '../lib/wellness-engine'
-import { rankMealRecommendations } from '../lib/recommendation-engine'
 import { fetchTodayHydration, logHydrationIntake } from '../services/hydrationService'
-import { fetchAlerts, type SmartAlert } from '../services/alertService'
-import { fetchUserExpenses } from '../services/budgetService'
+import { fetchUserExpenses, type ExpenseItem } from '../services/budgetService'
 
 interface Props {
   profile: UserProfile
   userId?: string
   onNavigate: (view: DashView) => void
+  onUpdateProfile?: (p: Partial<UserProfile>) => void
 }
 
-export default function DashboardHome({ profile, userId, onNavigate }: Props) {
+export default function DashboardHome({ profile, userId, onNavigate, onUpdateProfile }: Props) {
   const [hydrationToday, setHydrationToday] = useState(1650)
-  const [recentAlerts, setRecentAlerts] = useState<SmartAlert[]>([])
-  const [foodSpent, setFoodSpent] = useState(0)
-
-  // Derive a summarized wellness status from profile + hydration (no live biometrics)
-  const summaryReading = {
-    heartRate: 72,
-    temperature: 36.6,
-    spo2: 98,
-    motion: 'REST' as const,
-    steps: 0,
-    workoutActive: false,
-    deviceId: 'summary',
-    timestamp: new Date().toISOString(),
-  }
-  const wellness = evaluateWellnessStatus(summaryReading, hydrationToday)
-  const recommendations = rankMealRecommendations(profile, summaryReading).slice(0, 3)
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([])
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
+  const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false)
+  const [optimizationAppliedToast, setOptimizationAppliedToast] = useState(false)
 
   useEffect(() => {
     async function loadData() {
       const todayHydration = await fetchTodayHydration(userId)
       setHydrationToday(todayHydration)
-      const alerts = await fetchAlerts(userId)
-      setRecentAlerts(alerts.slice(0, 2))
-      const expenses = await fetchUserExpenses(userId)
-      const spent = expenses
-        .filter((e) => e.category === 'food')
-        .reduce((acc, curr) => acc + curr.amount, 0)
-      setFoodSpent(spent)
+      const userExpenses = await fetchUserExpenses(userId)
+      setExpenses(userExpenses)
     }
     loadData()
   }, [userId])
@@ -54,197 +35,492 @@ export default function DashboardHome({ profile, userId, onNavigate }: Props) {
     await logHydrationIntake(amountMl, userId)
   }
 
-  // Calculate high level summaries from profile + real expenses
-  const foodBudget = profile.budgetCategories?.food || 3000
-  const foodRemaining = Math.max(0, foodBudget - foodSpent)
+  // Time-of-day adaptive greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning 👋'
+    if (hour < 17) return 'Good afternoon 👋'
+    return 'Good evening 👋'
+  }
+
+  // Real budget calculations
+  const monthlyBudget = profile.monthlyBudget || 10000
+  const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0)
+  const remainingBudget = Math.max(0, monthlyBudget - totalSpent)
+
+  const now = new Date()
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const daysLeft = Math.max(1, daysInMonth - now.getDate() + 1)
+
+  // Category breakdown calculation from real categories & expenses
+  const categoryAllocations = profile.budgetCategories || {
+    food: 4550,
+    supplements: 2400,
+    hydration: 1100,
+    recovery: 1000,
+    other: 950,
+  }
+
+  const categorySpentMap: Record<string, number> = {
+    food: 0,
+    supplements: 0,
+    hydration: 0,
+    recovery: 0,
+    other: 0,
+  }
+
+  expenses.forEach((e) => {
+    if (categorySpentMap[e.category] !== undefined) {
+      categorySpentMap[e.category] += Number(e.amount) || 0
+    }
+  })
+
+  const categoryRemaining = {
+    food: Math.max(0, (categoryAllocations.food || 0) - categorySpentMap.food),
+    supplements: Math.max(0, (categoryAllocations.supplements || 0) - categorySpentMap.supplements),
+    hydration: Math.max(0, (categoryAllocations.hydration || 0) - categorySpentMap.hydration),
+    recovery: Math.max(0, (categoryAllocations.recovery || 0) - categorySpentMap.recovery),
+    other: Math.max(0, (categoryAllocations.other || 0) - categorySpentMap.other),
+  }
+
+  // Dynamic plan recommendations based on profile goal
+  const getPlanDetails = () => {
+    const goal = profile.goal
+    if (goal === 'gym' || goal === 'strength') {
+      return {
+        workout: `${profile.primaryExercise || 'Upper Body'} · Moderate`,
+        workoutTime: '45 min',
+        nutrition: `Protein-focused · ${profile.foodStyle || 'South Indian'} meals`,
+        hydrationTarget: '2.5 L target',
+      }
+    }
+    if (goal === 'athlete' || goal === 'endurance') {
+      return {
+        workout: `${profile.primaryExercise || 'Interval Running'} · High Intensity`,
+        workoutTime: '50 min',
+        nutrition: `Carb & Electrolyte Support · ${profile.dietType || 'Vegetarian'}`,
+        hydrationTarget: '3.0 L target',
+      }
+    }
+    return {
+      workout: `${profile.primaryExercise || 'Mobility & Cardio'} · Moderate`,
+      workoutTime: '35 min',
+      nutrition: `Calorie-Conscious · ${profile.dietType || 'Vegetarian'}`,
+      hydrationTarget: '2.5 L target',
+    }
+  }
+
+  const plan = getPlanDetails()
+
+  // Signature Optimization Proposal calculation
+  const optimizeAmount = 500
+  const proposedUpdatedCategories = {
+    food: (categoryAllocations.food || 4550) + 300,
+    hydration: (categoryAllocations.hydration || 1100) + 200,
+    supplements: Math.max(0, (categoryAllocations.supplements || 2400) - 300),
+    recovery: categoryAllocations.recovery || 1000,
+    other: Math.max(0, (categoryAllocations.other || 950) - 200),
+  }
+
+  const handleApplyOptimization = () => {
+    if (onUpdateProfile) {
+      onUpdateProfile({
+        budgetCategories: proposedUpdatedCategories,
+      })
+    }
+    setIsOptimizeModalOpen(false)
+    setOptimizationAppliedToast(true)
+    setTimeout(() => setOptimizationAppliedToast(false), 4500)
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Wellness & Overview Banner */}
-      <div
-        className="rounded-2xl p-6 relative overflow-hidden text-white"
-        style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #0284c7 100%)' }}
-      >
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Toast notification on successful optimization */}
+      {optimizationAppliedToast && (
+        <div className="p-4 rounded-xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-between shadow-lg fade-in">
+          <span>✨ Budget optimization applied successfully! Reallocated ₹500 to Food & Hydration.</span>
+          <button onClick={() => setOptimizationAppliedToast(false)} className="text-white hover:text-emerald-200">✕</button>
+        </div>
+      )}
+
+      {/* 1. TOP OF DASHBOARD - Time-Adaptive Greeting & Actual Goal */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+            {getGreeting()}
+          </h2>
+          <p className="text-sm font-semibold text-slate-600 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+            Your goal: <span className="text-teal-700 font-bold">{GOAL_LABELS[profile.goal] || profile.goal}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-teal-100 text-teal-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+            {profile.activityLevel} activity
+          </span>
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 capitalize" style={{ fontFamily: 'Inter, sans-serif' }}>
+            {profile.dietType}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. TODAY'S FITNESS STATUS */}
+      <div className="card p-5 border bg-white rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs" style={{ borderColor: '#e2e8f0' }}>
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-2xl shrink-0">
+            🟢
+          </div>
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-2" style={{ background: 'rgba(255,255,255,0.2)' }}>
-              <span>Wellness Overview · {wellness.status}</span>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                Today's fitness status
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                Ready to Train
+              </span>
             </div>
-            <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.5rem' }}>
-              {wellness.title}
-            </h2>
-            <p className="text-sm mt-1 max-w-xl" style={{ color: 'rgba(255,255,255,0.85)', fontFamily: 'Inter, sans-serif' }}>
-              {wellness.message}
+            <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Based on your current activity and available wellness data.
             </p>
           </div>
+        </div>
+        <div className="flex items-center gap-3 self-end sm:self-auto">
           <button
             onClick={() => onNavigate('live')}
-            className="px-5 py-2.5 rounded-xl font-semibold text-sm transition-all hover:bg-white/90 shadow-md shrink-0"
-            style={{ background: 'white', color: '#0f766e', fontFamily: 'Sora, sans-serif' }}
+            className="text-xs font-bold text-teal-700 hover:text-teal-900 bg-teal-50 px-3 py-2 rounded-xl border border-teal-200 transition-all"
           >
-            Open Live Monitoring →
+            Live Monitoring →
           </button>
         </div>
       </div>
 
-      {/* High-Level Overview Cards (Summarized, No Live Biometrics) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Latest Workout Summary */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>Latest Workout</span>
-            <span className="text-xl">⚡</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-semibold text-lg text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
-              {profile.primaryExercise || 'Running'}
-            </span>
-          </div>
-          <p className="text-xs mt-2 text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => onNavigate('live')}>
-            Start a new session in Live Monitoring →
-          </p>
-        </div>
-
-        {/* Fitness Goal */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>Fitness Goal</span>
-            <span className="text-xl">🎯</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-semibold text-lg text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
-              {GOAL_LABELS[profile.goal] || profile.goal}
-            </span>
-          </div>
-          <div className="mt-2 text-xs text-slate-500 font-medium flex items-center justify-between">
-            <span>Activity: {profile.activityLevel}</span>
-            <span className="text-teal-700 font-semibold capitalize">{profile.dietType}</span>
+      {/* 3. TODAY'S PLAN & 4. PRIMARY CTA */}
+      <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
+        <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+          <div>
+            <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2" style={{ fontFamily: 'Sora, sans-serif' }}>
+              <span>🎯</span>
+              <span>TODAY'S PLAN</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Personalized action recommendations tailored to your {GOAL_LABELS[profile.goal] || profile.goal} goal.
+            </p>
           </div>
         </div>
 
-        {/* Hydration Summary */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>Hydration Summary</span>
-            <span className="text-xl">💧</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono-data text-2xl font-bold text-sky-600">{hydrationToday}</span>
-            <span className="text-xs text-slate-500 font-medium">/ 2,500 ml</span>
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-sky-500 rounded-full" style={{ width: `${Math.min(100, (hydrationToday / 2500) * 100)}%` }} />
+        {/* 3 Compact Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* WORKOUT CARD */}
+          <div className="p-4 rounded-xl border bg-slate-50/70 hover:bg-slate-50 transition-all border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono-data">WORKOUT</span>
+              <span className="text-base">🏃</span>
             </div>
-            <button
-              onClick={() => handleAddWater(250)}
-              className="text-xs font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-700 hover:bg-sky-200 transition-all"
-            >
-              +250ml
-            </button>
+            <p className="font-bold text-base text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {plan.workout}
+            </p>
+            <p className="text-xs text-slate-500 font-semibold font-mono-data">
+              {plan.workoutTime}
+            </p>
+          </div>
+
+          {/* NUTRITION CARD */}
+          <div className="p-4 rounded-xl border bg-slate-50/70 hover:bg-slate-50 transition-all border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono-data">NUTRITION</span>
+              <span className="text-base">🥗</span>
+            </div>
+            <p className="font-bold text-base text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {plan.nutrition}
+            </p>
+            <p className="text-xs text-teal-700 font-semibold">
+              Goal aligned
+            </p>
+          </div>
+
+          {/* HYDRATION CARD */}
+          <div className="p-4 rounded-xl border bg-slate-50/70 hover:bg-slate-50 transition-all border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono-data">HYDRATION</span>
+              <span className="text-base">💧</span>
+            </div>
+            <p className="font-bold text-base text-slate-900 font-mono-data">
+              {plan.hydrationTarget}
+            </p>
+            <div className="flex items-center justify-between text-xs text-sky-700 font-semibold">
+              <span>{hydrationToday.toLocaleString()} ml logged</span>
+              <button
+                onClick={() => handleAddWater(250)}
+                className="px-2 py-0.5 rounded bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold cursor-pointer"
+              >
+                +250ml
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Food Budget Status */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>Food Budget</span>
-            <span className="text-xl">💳</span>
+        {/* 4. PRIMARY CTA BUTTON */}
+        <button
+          onClick={() => setIsPlanModalOpen(true)}
+          className="w-full py-4 rounded-xl font-extrabold text-base text-white transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2"
+          style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)', fontFamily: 'Sora, sans-serif' }}
+        >
+          <span>START TODAY'S PLAN</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      {/* 5. YOUR FITNESS MONEY & 6. CATEGORY BREAKDOWN */}
+      <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 border-slate-100">
+          <div>
+            <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2" style={{ fontFamily: 'Sora, sans-serif' }}>
+              <span>💰</span>
+              <span>YOUR FITNESS MONEY</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Real-time budget status based on actual recorded expenses.
+            </p>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="font-mono-data text-2xl font-bold text-teal-700">₹{foodRemaining.toLocaleString()}</span>
-            <span className="text-xs text-slate-500 font-medium">left</span>
+          <button
+            onClick={() => onNavigate('budget')}
+            className="text-xs font-bold text-teal-700 hover:underline self-start sm:self-auto"
+          >
+            Manage Budget →
+          </button>
+        </div>
+
+        {/* Remaining Money Summary Callout */}
+        <div className="p-4 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider font-mono-data">Remaining Budget</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-3xl font-extrabold text-teal-400 font-mono-data">
+                ₹{remainingBudget.toLocaleString()}
+              </span>
+              <span className="text-slate-400 text-xs font-mono-data">
+                remaining of ₹{monthlyBudget.toLocaleString()}
+              </span>
+            </div>
           </div>
-          <p className="text-xs mt-2 text-slate-500">
-            Spent ₹{foodSpent.toLocaleString()} of ₹{foodBudget.toLocaleString()} monthly allocation
+          <div className="sm:text-right">
+            <span className="text-xs text-slate-400 font-semibold uppercase block">Budget Cycle</span>
+            <span className="text-lg font-bold text-white font-mono-data">{daysLeft} days left</span>
+          </div>
+        </div>
+
+        {/* 6. CATEGORY BREAKDOWN */}
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+            Category Remaining Balance
           </p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="p-3 rounded-xl border bg-slate-50 border-slate-200">
+              <span className="text-xs text-slate-500 font-medium block">🥗 Food</span>
+              <span className="font-mono-data text-base font-bold text-slate-900 mt-1 block">
+                ₹{categoryRemaining.food.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl border bg-slate-50 border-slate-200">
+              <span className="text-xs text-slate-500 font-medium block">💧 Hydration</span>
+              <span className="font-mono-data text-base font-bold text-slate-900 mt-1 block">
+                ₹{categoryRemaining.hydration.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl border bg-slate-50 border-slate-200">
+              <span className="text-xs text-slate-500 font-medium block">🧘 Recovery</span>
+              <span className="font-mono-data text-base font-bold text-slate-900 mt-1 block">
+                ₹{categoryRemaining.recovery.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl border bg-slate-50 border-slate-200">
+              <span className="text-xs text-slate-500 font-medium block">💊 Supplements</span>
+              <span className="font-mono-data text-base font-bold text-slate-900 mt-1 block">
+                ₹{categoryRemaining.supplements.toLocaleString()}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl border bg-slate-50 border-slate-200">
+              <span className="text-xs text-slate-500 font-medium block">🏋️ Gear</span>
+              <span className="font-mono-data text-base font-bold text-slate-900 mt-1 block">
+                ₹{categoryRemaining.other.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 7. SIGNATURE FEATURE - OPTIMIZE */}
+        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🔥</span>
+              <h4 className="font-bold text-sm text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                Smart Allocation Opportunity
+              </h4>
+            </div>
+            <p className="text-xs text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+              SmartWear found an opportunity to improve your allocation.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsOptimizeModalOpen(true)}
+            className="px-5 py-2.5 rounded-xl text-sm font-extrabold text-slate-950 bg-amber-400 hover:bg-amber-500 transition-all cursor-pointer shadow-xs shrink-0 flex items-center gap-1.5"
+            style={{ fontFamily: 'Sora, sans-serif' }}
+          >
+            <span>🔥 Optimize ₹{optimizeAmount}</span>
+            <span>→</span>
+          </button>
         </div>
       </div>
 
-      {/* Recommendations & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recommendation Engine List */}
-        <div className="lg:col-span-2 card p-6">
-          <div className="flex items-center justify-between mb-4">
+      {/* TODAY'S PLAN EXECUTION MODAL */}
+      {isPlanModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs fade-in">
+          <div className="w-full max-w-lg bg-white rounded-2xl p-6 relative border shadow-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
+            <button
+              onClick={() => setIsPlanModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
+            >
+              ✕
+            </button>
+
             <div>
-              <h3 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>
-                Goal-Adaptive Recommendations
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 uppercase">
+                Active Execution Guide
+              </span>
+              <h3 className="font-bold text-xl text-slate-900 mt-2" style={{ fontFamily: 'Sora, sans-serif' }}>
+                Today's Action Plan
               </h3>
-              <p className="text-xs text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Ranked by goal match, activity state & monthly budget
+              <p className="text-xs text-slate-500 mt-0.5">
+                Targeting: {GOAL_LABELS[profile.goal] || profile.goal} goal
               </p>
             </div>
+
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 1 · WORKOUT</span>
+                  <p className="font-bold text-sm text-slate-900">{plan.workout}</p>
+                </div>
+                <button
+                  onClick={() => { setIsPlanModalOpen(false); onNavigate('live') }}
+                  className="btn-primary text-xs font-bold px-3 py-2 shrink-0 cursor-pointer"
+                >
+                  Start Workout →
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 2 · NUTRITION</span>
+                  <p className="font-bold text-sm text-slate-900">{plan.nutrition}</p>
+                </div>
+                <button
+                  onClick={() => { setIsPlanModalOpen(false); onNavigate('nutrition') }}
+                  className="btn-primary text-xs font-bold px-3 py-2 shrink-0 cursor-pointer"
+                >
+                  View Food →
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 3 · HYDRATION</span>
+                  <p className="font-bold text-sm text-slate-900">{plan.hydrationTarget}</p>
+                </div>
+                <button
+                  onClick={() => handleAddWater(250)}
+                  className="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shrink-0 cursor-pointer"
+                >
+                  +250ml Water
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. OPTIMIZE PROPOSAL MODAL */}
+      {isOptimizeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs fade-in">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 relative border shadow-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
             <button
-              onClick={() => onNavigate('nutrition')}
-              className="text-xs font-semibold text-teal-700 hover:underline"
+              onClick={() => setIsOptimizeModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
             >
-              View All →
+              ✕
             </button>
-          </div>
 
-          <div className="space-y-3">
-            {recommendations.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-xl border flex items-center justify-between gap-4 transition-all hover:bg-slate-50"
-                style={{ borderColor: '#e2e8f0' }}
+            <div>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 uppercase">
+                🔥 Smart Reallocation Proposal
+              </span>
+              <h3 className="font-bold text-xl text-slate-900 mt-2" style={{ fontFamily: 'Sora, sans-serif' }}>
+                Suggested Optimization
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Reallocate ₹500 from under-utilized categories to support your active {GOAL_LABELS[profile.goal] || profile.goal} goal.
+              </p>
+            </div>
+
+            {/* Before vs Proposed Changes */}
+            <div className="space-y-2.5 border-y py-4 border-slate-100">
+              <div className="grid grid-cols-3 text-xs font-bold text-slate-400 uppercase tracking-wider pb-1">
+                <span>Category</span>
+                <span className="text-center">Current</span>
+                <span className="text-right">Proposed</span>
+              </div>
+
+              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
+                <span className="text-slate-800">🥗 Food</span>
+                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.food || 4550}</span>
+                <span className="text-right font-mono-data text-emerald-600 font-bold">
+                  +₹300 → ₹{(categoryAllocations.food || 4550) + 300}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
+                <span className="text-slate-800">💧 Hydration</span>
+                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.hydration || 1100}</span>
+                <span className="text-right font-mono-data text-emerald-600 font-bold">
+                  +₹200 → ₹{(categoryAllocations.hydration || 1100) + 200}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
+                <span className="text-slate-800">💊 Supplements</span>
+                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.supplements || 2400}</span>
+                <span className="text-right font-mono-data text-amber-600 font-bold">
+                  -₹300 → ₹{Math.max(0, (categoryAllocations.supplements || 2400) - 300)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
+                <span className="text-slate-800">🏋️ Gear</span>
+                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.other || 950}</span>
+                <span className="text-right font-mono-data text-amber-600 font-bold">
+                  -₹200 → ₹{Math.max(0, (categoryAllocations.other || 950) - 200)}
+                </span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="space-y-2">
+              <button
+                onClick={handleApplyOptimization}
+                className="w-full py-3 rounded-xl text-sm font-bold text-white bg-teal-700 hover:bg-teal-800 transition-all cursor-pointer shadow-sm"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
-                      {item.name}
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-teal-100 text-teal-800">
-                      Score: {item.score}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">{item.description}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-mono-data font-bold text-sm text-teal-700">₹{item.estimatedCost}</p>
-                  <p className="text-xs text-slate-400">{item.calories} kcal</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Action Widgets & Recent Alerts */}
-        <div className="space-y-4">
-          <div className="card p-6">
-            <h3 className="font-bold text-base mb-3" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => onNavigate('live')} className="p-3.5 rounded-xl border text-left hover:border-teal-500 transition-all bg-slate-50">
-                <span className="text-2xl block mb-1">📡</span>
-                <span className="text-xs font-semibold block" style={{ fontFamily: 'Sora, sans-serif' }}>Live Monitoring</span>
+                Apply Optimization
               </button>
-              <button onClick={() => onNavigate('budget')} className="p-3.5 rounded-xl border text-left hover:border-teal-500 transition-all bg-slate-50">
-                <span className="text-2xl block mb-1">💸</span>
-                <span className="text-xs font-semibold block" style={{ fontFamily: 'Sora, sans-serif' }}>Add Expense</span>
-              </button>
-              <button onClick={() => onNavigate('insights')} className="p-3.5 rounded-xl border text-left hover:border-teal-500 transition-all bg-slate-50">
-                <span className="text-2xl block mb-1">📊</span>
-                <span className="text-xs font-semibold block" style={{ fontFamily: 'Sora, sans-serif' }}>Recovery Score</span>
-              </button>
-              <button onClick={() => onNavigate('alerts')} className="p-3.5 rounded-xl border text-left hover:border-teal-500 transition-all bg-slate-50">
-                <span className="text-2xl block mb-1">🔔</span>
-                <span className="text-xs font-semibold block" style={{ fontFamily: 'Sora, sans-serif' }}>View Alerts</span>
+              <button
+                onClick={() => setIsOptimizeModalOpen(false)}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all cursor-pointer"
+              >
+                Keep Current Budget
               </button>
             </div>
           </div>
-
-          {recentAlerts.length > 0 && (
-            <div className="card p-5 border-l-4 border-amber-500">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-700" style={{ fontFamily: 'Sora, sans-serif' }}>Recent Alert</span>
-                <button onClick={() => onNavigate('alerts')} className="text-xs text-slate-400 hover:text-slate-600">All Alerts →</button>
-              </div>
-              <p className="text-sm font-semibold text-slate-800">{recentAlerts[0].message}</p>
-              <p className="text-xs text-slate-400 mt-1">Category: {recentAlerts[0].category} · Severity: {recentAlerts[0].severity}</p>
-            </div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
