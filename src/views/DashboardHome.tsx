@@ -7,6 +7,9 @@ import { fetchUserExpenses, type ExpenseItem } from '../services/budgetService'
 import { evaluateSmartAdjustment, saveAdjustmentState } from '../services/smartAdjustment/smartAdjustmentEngine'
 import type { SmartAdjustment } from '../services/smartAdjustment/types'
 import SmartAdjustmentCard from '../components/SmartAdjustmentCard'
+import { optimizeFitnessBudget } from '../services/budgetOptimization/budgetOptimizationEngine'
+import type { OptimizationResult } from '../services/budgetOptimization/types'
+import { MIN_OPTIMIZE_AMOUNT } from '../services/budgetOptimization/rules'
 
 interface Props {
   profile: UserProfile
@@ -19,8 +22,12 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
   const [hydrationToday, setHydrationToday] = useState(1650)
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
-  const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false)
   const [optimizationAppliedToast, setOptimizationAppliedToast] = useState(false)
+
+  // Optimization state
+  const [isOptimizeResultOpen, setIsOptimizeResultOpen] = useState(false)
+  const [optimizeResult, setOptimizeResult] = useState<OptimizationResult | null>(null)
+  const [isOptimizing, setIsOptimizing] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -115,27 +122,6 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
 
   const plan = getPlanDetails()
 
-  // Signature Optimization Proposal calculation
-  const optimizeAmount = 500
-  const proposedUpdatedCategories = {
-    food: (categoryAllocations.food || 4550) + 300,
-    hydration: (categoryAllocations.hydration || 1100) + 200,
-    supplements: Math.max(0, (categoryAllocations.supplements || 2400) - 300),
-    recovery: categoryAllocations.recovery || 1000,
-    other: Math.max(0, (categoryAllocations.other || 950) - 200),
-  }
-
-  const handleApplyOptimization = () => {
-    if (onUpdateProfile) {
-      onUpdateProfile({
-        budgetCategories: proposedUpdatedCategories,
-      })
-    }
-    setIsOptimizeModalOpen(false)
-    setOptimizationAppliedToast(true)
-    setTimeout(() => setOptimizationAppliedToast(false), 4500)
-  }
-
   // Evaluate Smart Adjustment safely at top-level
   const pendingAdjustment = profile ? evaluateSmartAdjustment({
     sensorReading: {
@@ -175,6 +161,57 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
     await saveAdjustmentState(updatedAdj, userId)
   }
 
+  // ── OPTIMIZE MY ₹X ──
+  const canOptimize = remainingBudget >= MIN_OPTIMIZE_AMOUNT
+
+  const handleOptimize = () => {
+    setIsOptimizing(true)
+
+    // Simulate brief analysis time for premium feel
+    setTimeout(() => {
+      const result = optimizeFitnessBudget({
+        profile,
+        expenses,
+        hydrationToday,
+        sensorContext: pendingAdjustment ? pendingAdjustment.sensorContext : null,
+      })
+
+      setOptimizeResult(result)
+      setIsOptimizing(false)
+      setIsOptimizeResultOpen(true)
+    }, 600)
+  }
+
+  const handleApplyOptimization = () => {
+    if (!optimizeResult || !onUpdateProfile) return
+
+    // Check Smart Reallocation is enabled
+    if (!optimizeResult.smartReallocationEnabled) return
+
+    // Build new category allocations from changes
+    const newAllocations = { ...categoryAllocations }
+    optimizeResult.categoryChanges.forEach((change) => {
+      newAllocations[change.category] = change.after
+    })
+
+    onUpdateProfile({
+      budgetCategories: newAllocations,
+    })
+
+    setIsOptimizeResultOpen(false)
+    setOptimizationAppliedToast(true)
+    setTimeout(() => setOptimizationAppliedToast(false), 4500)
+  }
+
+  const handleEnableSmartReallocation = () => {
+    if (onUpdateProfile) {
+      onUpdateProfile({ smartReallocation: true })
+    }
+    setIsOptimizeResultOpen(false)
+    // Re-trigger optimization with smart reallocation enabled
+    setTimeout(() => handleOptimize(), 300)
+  }
+
   if (!profile) {
     return (
       <div className="card p-8 text-center text-slate-500">
@@ -188,7 +225,7 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
       {/* Toast notification on successful optimization */}
       {optimizationAppliedToast && (
         <div className="p-4 rounded-xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-between shadow-lg fade-in">
-          <span>✨ Budget optimization applied successfully! Reallocated ₹500 to Food & Hydration.</span>
+          <span>✨ Smart optimization applied! Your fitness budget has been updated.</span>
           <button onClick={() => setOptimizationAppliedToast(false)} className="text-white hover:text-emerald-200">✕</button>
         </div>
       )}
@@ -253,7 +290,7 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
         />
       )}
 
-      {/* 3. TODAY'S PLAN & 4. PRIMARY CTA */}
+      {/* 3. TODAY'S PLAN */}
       <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
         <div className="flex items-center justify-between border-b pb-3 border-slate-100">
           <div>
@@ -318,7 +355,7 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
           </div>
         </div>
 
-        {/* 4. PRIMARY CTA BUTTON */}
+        {/* PRIMARY CTA BUTTON */}
         <button
           onClick={() => setIsPlanModalOpen(true)}
           className="w-full py-4 rounded-xl font-extrabold text-base text-white transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2"
@@ -328,6 +365,86 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
           <span>→</span>
         </button>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* 4. 💰 OPTIMIZE MY ₹X — HERO FEATURE CARD                   */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {canOptimize ? (
+        <div
+          className="relative overflow-hidden rounded-2xl border-2 shadow-lg transition-all hover:shadow-xl"
+          style={{
+            borderColor: '#f59e0b',
+            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 30%, #fff7ed 100%)',
+          }}
+        >
+          {/* Decorative accent bar */}
+          <div className="absolute top-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, #f59e0b, #f97316, #f59e0b)' }} />
+
+          <div className="p-6 space-y-4">
+            {/* Title row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl" style={{ background: 'linear-gradient(135deg, #f59e0b, #f97316)', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)' }}>
+                  💰
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    Optimize My ₹{remainingBudget.toLocaleString()}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    SmartWear Killer Feature
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-200/80 text-amber-900 uppercase tracking-wide" style={{ fontFamily: 'Inter, sans-serif' }}>
+                USP
+              </span>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-slate-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Have ₹{remainingBudget.toLocaleString()} to spend?
+              </p>
+              <p className="text-xs text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                SmartWear will decide how to use it based on your <span className="font-semibold text-slate-800">goal</span> + <span className="font-semibold text-slate-800">today's performance</span> + <span className="font-semibold text-slate-800">food preferences</span> + <span className="font-semibold text-slate-800">remaining budget</span> + <span className="font-semibold text-slate-800">recent spending</span>.
+              </p>
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={handleOptimize}
+              disabled={isOptimizing}
+              className="w-full py-3.5 rounded-xl font-extrabold text-sm text-slate-950 transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                fontFamily: 'Sora, sans-serif',
+              }}
+            >
+              {isOptimizing ? (
+                <>
+                  <span className="inline-block w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <span>🔥 OPTIMIZE ₹{remainingBudget.toLocaleString()}</span>
+                  <span>→</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card p-5 border rounded-2xl bg-slate-50 text-center space-y-2" style={{ borderColor: '#e2e8f0' }}>
+          <p className="text-sm font-semibold text-slate-500" style={{ fontFamily: 'Sora, sans-serif' }}>
+            💰 No optimization available
+          </p>
+          <p className="text-xs text-slate-400">
+            Your remaining budget is below ₹{MIN_OPTIMIZE_AMOUNT}. Add to your budget or wait for the next cycle.
+          </p>
+        </div>
+      )}
 
       {/* 5. YOUR FITNESS MONEY & 6. CATEGORY BREAKDOWN */}
       <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
@@ -406,33 +523,11 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
             </div>
           </div>
         </div>
-
-        {/* 7. SIGNATURE FEATURE - OPTIMIZE */}
-        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🔥</span>
-              <h4 className="font-bold text-sm text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
-                Smart Allocation Opportunity
-              </h4>
-            </div>
-            <p className="text-xs text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-              SmartWear found an opportunity to improve your allocation.
-            </p>
-          </div>
-
-          <button
-            onClick={() => setIsOptimizeModalOpen(true)}
-            className="px-5 py-2.5 rounded-xl text-sm font-extrabold text-slate-950 bg-amber-400 hover:bg-amber-500 transition-all cursor-pointer shadow-xs shrink-0 flex items-center gap-1.5"
-            style={{ fontFamily: 'Sora, sans-serif' }}
-          >
-            <span>🔥 Optimize ₹{optimizeAmount}</span>
-            <span>→</span>
-          </button>
-        </div>
       </div>
 
-      {/* TODAY'S PLAN EXECUTION MODAL */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* TODAY'S PLAN EXECUTION MODAL                                */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {isPlanModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs fade-in">
           <div className="w-full max-w-lg bg-white rounded-2xl p-6 relative border shadow-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
@@ -499,84 +594,229 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
         </div>
       )}
 
-      {/* 7. OPTIMIZE PROPOSAL MODAL */}
-      {isOptimizeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs fade-in">
-          <div className="w-full max-w-md bg-white rounded-2xl p-6 relative border shadow-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* FULL-SCREEN OPTIMIZATION RESULT MODAL                       */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {isOptimizeResultOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm fade-in" style={{ overflowY: 'auto' }}>
+          <div className="w-full max-w-xl bg-white rounded-2xl relative border shadow-2xl overflow-hidden slide-up" style={{ borderColor: '#e2e8f0', maxHeight: '90vh', overflowY: 'auto' }}>
+            {/* Header gradient bar */}
+            <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #f59e0b, #f97316, #ef4444, #f59e0b)' }} />
+
             <button
-              onClick={() => setIsOptimizeModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer"
+              onClick={() => setIsOptimizeResultOpen(false)}
+              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm cursor-pointer transition-all"
             >
               ✕
             </button>
 
-            <div>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 uppercase">
-                🔥 Smart Reallocation Proposal
-              </span>
-              <h3 className="font-bold text-xl text-slate-900 mt-2" style={{ fontFamily: 'Sora, sans-serif' }}>
-                Suggested Optimization
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Reallocate ₹500 from under-utilized categories to support your active {GOAL_LABELS[profile.goal] || profile.goal} goal.
-              </p>
-            </div>
+            <div className="p-6 space-y-6">
+              {/* Smart Reallocation OFF state */}
+              {optimizeResult && !optimizeResult.smartReallocationEnabled ? (
+                <div className="space-y-5 text-center py-4">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center text-3xl">
+                    ⚠️
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xl text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                      Smart Reallocation is currently OFF
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-2" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      You can still preview how SmartWear would optimize your available budget.
+                    </p>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <button
+                      onClick={handleEnableSmartReallocation}
+                      className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer"
+                      style={{ background: 'linear-gradient(135deg, #0f766e, #0d9488)' }}
+                    >
+                      Enable Smart Reallocation
+                    </button>
+                    <button
+                      onClick={() => setIsOptimizeResultOpen(false)}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : !optimizeResult ? (
+                /* No result / insufficient data state */
+                <div className="space-y-5 text-center py-4">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-3xl">
+                    📊
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xl text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                      Not enough data to optimize
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-2" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      SmartWear needs more information before it can optimize your budget.
+                    </p>
+                  </div>
+                  <div className="space-y-2 text-left bg-slate-50 rounded-xl p-4">
+                    {!profile.dietType && (
+                      <p className="text-sm text-amber-700 font-medium flex items-center gap-2">
+                        <span>⚠️</span> Complete your food preferences
+                      </p>
+                    )}
+                    {expenses.length === 0 && (
+                      <p className="text-sm text-amber-700 font-medium flex items-center gap-2">
+                        <span>⚠️</span> Record today's activity
+                      </p>
+                    )}
+                    {!profile.monthlyBudget && (
+                      <p className="text-sm text-amber-700 font-medium flex items-center gap-2">
+                        <span>⚠️</span> Add your current budget
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setIsOptimizeResultOpen(false)}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                /* ── Full Optimization Result ── */
+                <>
+                  {/* Header */}
+                  <div>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 uppercase tracking-wide">
+                      ✨ Smart Optimization
+                    </span>
+                    <h3 className="font-extrabold text-xl text-slate-900 mt-2" style={{ fontFamily: 'Sora, sans-serif' }}>
+                      Here's how SmartWear recommends using ₹{optimizeResult.availableAmount.toLocaleString()} today.
+                    </h3>
+                  </div>
 
-            {/* Before vs Proposed Changes */}
-            <div className="space-y-2.5 border-y py-4 border-slate-100">
-              <div className="grid grid-cols-3 text-xs font-bold text-slate-400 uppercase tracking-wider pb-1">
-                <span>Category</span>
-                <span className="text-center">Current</span>
-                <span className="text-right">Proposed</span>
-              </div>
+                  {/* YOUR INPUT */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Your Input</span>
+                      <span className="text-lg font-extrabold text-slate-900 font-mono-data">₹{optimizeResult.availableAmount.toLocaleString()}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 space-y-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      <p>✓ Your goal: {optimizeResult.reasoning.goalLabel}</p>
+                      <p>✓ Today's performance: {optimizeResult.reasoning.activitySummary}</p>
+                      <p>✓ Food preferences: {optimizeResult.reasoning.foodPreference}</p>
+                      <p>✓ Budget: {optimizeResult.reasoning.budgetSummary}</p>
+                      <p>✓ Spending: {optimizeResult.reasoning.spendingSummary}</p>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
-                <span className="text-slate-800">🥗 Food</span>
-                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.food || 4550}</span>
-                <span className="text-right font-mono-data text-emerald-600 font-bold">
-                  +₹300 → ₹{(categoryAllocations.food || 4550) + 300}
-                </span>
-              </div>
+                  {/* SMARTWEAR'S RECOMMENDATION */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">SmartWear's recommendation</p>
+                    {optimizeResult.recommendations.map((rec) => (
+                      <div key={rec.category} className="p-4 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 hover:bg-slate-50/50 transition-all">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{rec.icon}</span>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>{rec.label}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{rec.description}</p>
+                          </div>
+                        </div>
+                        <span className="font-extrabold text-base text-slate-900 font-mono-data shrink-0">
+                          ₹{rec.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-slate-900 text-white">
+                      <span className="text-xs font-bold uppercase tracking-wider">Total</span>
+                      <span className="font-extrabold text-lg font-mono-data text-teal-400">₹{optimizeResult.availableAmount.toLocaleString()}</span>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
-                <span className="text-slate-800">💧 Hydration</span>
-                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.hydration || 1100}</span>
-                <span className="text-right font-mono-data text-emerald-600 font-bold">
-                  +₹200 → ₹{(categoryAllocations.hydration || 1100) + 200}
-                </span>
-              </div>
+                  {/* RECOMMENDATION SCORE */}
+                  <div className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/60">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center shrink-0" style={{ background: 'conic-gradient(#0d9488 0% ' + optimizeResult.score + '%, #e2e8f0 ' + optimizeResult.score + '% 100%)' }}>
+                      <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                        <span className="font-extrabold text-sm text-teal-700 font-mono-data">{optimizeResult.score}%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>SmartWear Match</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Goal {optimizeResult.scoreBreakdown.goalFit}% · Food {optimizeResult.scoreBreakdown.foodPreferenceFit}% · Budget {optimizeResult.scoreBreakdown.budgetFit}% · Activity {optimizeResult.scoreBreakdown.activityRelevance}%
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
-                <span className="text-slate-800">💊 Supplements</span>
-                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.supplements || 2400}</span>
-                <span className="text-right font-mono-data text-amber-600 font-bold">
-                  -₹300 → ₹{Math.max(0, (categoryAllocations.supplements || 2400) - 300)}
-                </span>
-              </div>
+                  {/* WHY SMARTWEAR CHOSE THIS */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Why SmartWear chose this</p>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Goal</span>
+                        <span className="text-slate-800 font-bold">{optimizeResult.reasoning.goalLabel}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Today's performance</span>
+                        <span className="text-slate-800 font-bold">{optimizeResult.reasoning.activitySummary}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Food preference</span>
+                        <span className="text-slate-800 font-bold">{optimizeResult.reasoning.foodPreference}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block">Recent spending</span>
+                        <span className="text-slate-800 font-bold">{optimizeResult.reasoning.spendingSummary}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-600 italic border-t border-slate-200 pt-2">
+                      {optimizeResult.reasoning.explanation}
+                    </p>
+                  </div>
 
-              <div className="grid grid-cols-3 text-sm font-semibold items-center py-1">
-                <span className="text-slate-800">🏋️ Gear</span>
-                <span className="text-center font-mono-data text-slate-500">₹{categoryAllocations.other || 950}</span>
-                <span className="text-right font-mono-data text-amber-600 font-bold">
-                  -₹200 → ₹{Math.max(0, (categoryAllocations.other || 950) - 200)}
-                </span>
-              </div>
-            </div>
+                  {/* BEFORE / AFTER */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Before → After Smart Optimization</p>
+                    <div className="rounded-xl border border-slate-200 overflow-hidden">
+                      {/* Table header */}
+                      <div className="grid grid-cols-4 text-xs font-bold text-slate-400 uppercase tracking-wider px-4 py-2 bg-slate-50 border-b border-slate-200">
+                        <span>Category</span>
+                        <span className="text-center">Before</span>
+                        <span className="text-center">After</span>
+                        <span className="text-right">Change</span>
+                      </div>
+                      {optimizeResult.categoryChanges.map((change) => (
+                        <div key={change.category} className="grid grid-cols-4 text-sm items-center px-4 py-2.5 border-b border-slate-100 last:border-b-0">
+                          <span className="text-slate-800 font-semibold flex items-center gap-1.5">
+                            <span className="text-sm">{change.icon}</span>
+                            <span className="text-xs">{change.label}</span>
+                          </span>
+                          <span className="text-center font-mono-data text-slate-500 text-xs">₹{change.before.toLocaleString()}</span>
+                          <span className="text-center font-mono-data text-slate-900 font-bold text-xs">₹{change.after.toLocaleString()}</span>
+                          <span className={`text-right font-mono-data text-xs font-bold ${change.delta > 0 ? 'text-emerald-600' : change.delta < 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                            {change.delta > 0 ? `+₹${change.delta.toLocaleString()}` : change.delta === 0 ? '—' : `-₹${Math.abs(change.delta).toLocaleString()}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-            {/* Action buttons */}
-            <div className="space-y-2">
-              <button
-                onClick={handleApplyOptimization}
-                className="w-full py-3 rounded-xl text-sm font-bold text-white bg-teal-700 hover:bg-teal-800 transition-all cursor-pointer shadow-sm"
-              >
-                Apply Optimization
-              </button>
-              <button
-                onClick={() => setIsOptimizeModalOpen(false)}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all cursor-pointer"
-              >
-                Keep Current Budget
-              </button>
+                  {/* PRIMARY ACTION */}
+                  <div className="space-y-2 pt-1">
+                    <button
+                      onClick={handleApplyOptimization}
+                      className="w-full py-3.5 rounded-xl text-sm font-extrabold text-white transition-all cursor-pointer shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #0f766e, #0d9488)', fontFamily: 'Sora, sans-serif' }}
+                    >
+                      <span>✨</span>
+                      <span>APPLY SMART OPTIMIZATION</span>
+                    </button>
+                    <button
+                      onClick={() => setIsOptimizeResultOpen(false)}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all cursor-pointer"
+                    >
+                      Keep Current Budget
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
