@@ -1,4 +1,5 @@
 import type { UserProfile } from '../App'
+import OnboardingHeader from '../components/OnboardingHeader'
 
 const ACTIVITY_LEVELS = [
   { val: 'sedentary', label: 'Sedentary', desc: 'Little or no exercise' },
@@ -19,31 +20,22 @@ interface Props {
 
 export default function PersonalDetails({ profile, onChange, onNext, onBack }: Props) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-2xl mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <button onClick={onBack} className="text-sm flex items-center gap-1" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
-            ← Back
-          </button>
-        </div>
-        <div className="flex gap-2">
-          {[1, 2, 3, 4].map((s) => (
-            <div key={s} className="h-1 flex-1 rounded-full" style={{ background: s <= 2 ? '#0d9488' : '#e2e8f0' }} />
-          ))}
-        </div>
-        <p className="text-xs mt-2" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>Step 2 of 4</p>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-12">
+      {/* Onboarding Header */}
+      <OnboardingHeader currentStep={2} onBack={onBack} />
 
-      <div className="w-full max-w-2xl fade-in">
-        <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.875rem', color: '#0f172a', marginBottom: '0.5rem' }}>
-          Tell us about yourself
-        </h2>
-        <p className="mb-8" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
-          We use this to calibrate your daily targets and recommendations.
-        </p>
+      <div className="w-full max-w-2xl space-y-6 fade-in">
+        <div>
+          <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.875rem', color: '#0f172a', marginBottom: '0.5rem' }}>
+            Tell us about yourself
+          </h2>
+          <p style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
+            We use this to calibrate your daily targets and recommendations.
+          </p>
+        </div>
 
-        <div className="card p-6 mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+        <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {/* Age */}
             <div>
               <label className="block text-sm font-semibold mb-1.5" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>Age</label>
@@ -68,7 +60,7 @@ export default function PersonalDetails({ profile, onChange, onNext, onBack }: P
                   min={100} max={220}
                   value={profile.height}
                   onChange={(e) => onChange({ height: +e.target.value })}
-                  className="w-full rounded-xl px-4 py-2.5 text-sm border outline-none"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm border outline-none focus:ring-2"
                   style={{ borderColor: '#e2e8f0', fontFamily: 'JetBrains Mono, monospace' }}
                 />
                 <span className="text-sm shrink-0" style={{ color: '#64748b' }}>cm</span>
@@ -83,7 +75,7 @@ export default function PersonalDetails({ profile, onChange, onNext, onBack }: P
                   min={30} max={200}
                   value={profile.weight}
                   onChange={(e) => onChange({ weight: +e.target.value })}
-                  className="w-full rounded-xl px-4 py-2.5 text-sm border outline-none"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm border outline-none focus:ring-2"
                   style={{ borderColor: '#e2e8f0', fontFamily: 'JetBrains Mono, monospace' }}
                 />
                 <span className="text-sm shrink-0" style={{ color: '#64748b' }}>kg</span>
@@ -92,7 +84,7 @@ export default function PersonalDetails({ profile, onChange, onNext, onBack }: P
           </div>
 
           {/* BMI preview */}
-          <div className="rounded-xl p-3 mb-5" style={{ background: '#f0fdf9' }}>
+          <div className="rounded-xl p-3" style={{ background: '#f0fdf9' }}>
             <div className="flex items-center justify-between">
               <span className="text-sm" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>Estimated BMI</span>
               <span className="font-mono-data font-bold" style={{ color: '#0d9488' }}>
@@ -111,14 +103,15 @@ export default function PersonalDetails({ profile, onChange, onNext, onBack }: P
           </div>
 
           {/* Activity Level */}
-          <div className="mb-5">
+          <div>
             <label className="block text-sm font-semibold mb-2" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>Activity Level</label>
             <div className="flex flex-wrap gap-2">
               {ACTIVITY_LEVELS.map((a) => (
                 <button
                   key={a.val}
+                  type="button"
                   onClick={() => onChange({ activityLevel: a.val })}
-                  className="px-4 py-2 rounded-xl text-sm font-medium border transition-all"
+                  className="px-4 py-2 rounded-xl text-sm font-medium border transition-all cursor-pointer"
                   style={{
                     background: profile.activityLevel === a.val ? '#0d9488' : 'white',
                     color: profile.activityLevel === a.val ? 'white' : '#64748b',
@@ -139,8 +132,9 @@ export default function PersonalDetails({ profile, onChange, onNext, onBack }: P
               {EXERCISES.map((ex) => (
                 <button
                   key={ex}
+                  type="button"
                   onClick={() => onChange({ primaryExercise: ex })}
-                  className="px-3 py-1.5 rounded-lg text-sm border transition-all"
+                  className="px-3 py-1.5 rounded-lg text-sm border transition-all cursor-pointer"
                   style={{
                     background: profile.primaryExercise === ex ? '#ccfbf1' : 'white',
                     color: profile.primaryExercise === ex ? '#0f766e' : '#64748b',
@@ -155,7 +149,10 @@ export default function PersonalDetails({ profile, onChange, onNext, onBack }: P
           </div>
         </div>
 
-        <button onClick={onNext} className="btn-primary w-full py-3.5 text-base">
+        <button
+          onClick={onNext}
+          className="btn-primary w-full py-4 text-base font-bold shadow-md hover:shadow-lg cursor-pointer"
+        >
           Continue →
         </button>
       </div>

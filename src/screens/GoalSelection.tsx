@@ -1,4 +1,5 @@
 import type { Goal } from '../App'
+import OnboardingHeader from '../components/OnboardingHeader'
 
 const GOALS: { id: Goal; label: string; icon: string; desc: string; color: string; bg: string }[] = [
   { id: 'athlete', label: 'Athlete', icon: '🏅', desc: 'Competition training, peak performance', color: '#0d9488', bg: '#ccfbf1' },
@@ -18,36 +19,26 @@ interface Props {
 
 export default function GoalSelection({ value, onChange, onNext, onBack }: Props) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      {/* Progress */}
-      <div className="w-full max-w-2xl mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <button onClick={onBack} className="text-sm flex items-center gap-1" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
-            ← Back
-          </button>
-        </div>
-        <div className="flex gap-2">
-          {[1, 2, 3, 4].map((s) => (
-            <div key={s} className="h-1 flex-1 rounded-full" style={{ background: s === 1 ? '#0d9488' : '#e2e8f0' }} />
-          ))}
-        </div>
-        <p className="text-xs mt-2" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>Step 1 of 4</p>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-12">
+      {/* Onboarding Header */}
+      <OnboardingHeader currentStep={1} onBack={onBack} />
 
-      <div className="w-full max-w-2xl fade-in">
-        <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.875rem', color: '#0f172a', marginBottom: '0.5rem' }}>
-          Primary Goal
-        </h2>
-        <p className="mb-8" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
-          We'll personalize your fitness, nutrition, and monitoring around your goal.
-        </p>
+      <div className="w-full max-w-2xl space-y-6 fade-in">
+        <div>
+          <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.875rem', color: '#0f172a', marginBottom: '0.5rem' }}>
+            Primary Goal
+          </h2>
+          <p style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
+            We'll personalize your fitness, nutrition, and monitoring around your goal.
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {GOALS.map((g, i) => (
             <button
               key={g.id}
               onClick={() => onChange(g.id)}
-              className="text-left p-5 rounded-2xl border-2 transition-all slide-up"
+              className="text-left p-5 rounded-2xl border-2 transition-all slide-up cursor-pointer"
               style={{
                 animationDelay: `${i * 0.06}s`,
                 animationFillMode: 'both',
@@ -68,7 +59,10 @@ export default function GoalSelection({ value, onChange, onNext, onBack }: Props
           ))}
         </div>
 
-        <button onClick={onNext} className="btn-primary w-full py-3.5 text-base">
+        <button
+          onClick={onNext}
+          className="btn-primary w-full py-4 text-base font-bold shadow-md hover:shadow-lg cursor-pointer"
+        >
           Continue →
         </button>
       </div>

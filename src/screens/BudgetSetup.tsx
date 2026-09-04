@@ -8,6 +8,7 @@ import {
   percentagesToAmounts,
   validateCategoryAmounts,
 } from '../utils/budgetUtils'
+import OnboardingHeader from '../components/OnboardingHeader'
 
 const BUDGET_OPTIONS = [2000, 3000, 5000, 6000, 8000, 10000]
 
@@ -29,7 +30,13 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
 
   const [amounts, setAmounts] = useState<Record<CategoryKey, number>>(() => {
     if (profile.budgetCategories && Object.values(profile.budgetCategories).some((v) => v > 0)) {
-      return { ...profile.budgetCategories }
+      return {
+        food: profile.budgetCategories.food || 4550,
+        supplements: profile.budgetCategories.supplements || 2400,
+        hydration: profile.budgetCategories.hydration || 1100,
+        recovery: profile.budgetCategories.recovery || 1000,
+        other: profile.budgetCategories.other || 950,
+      }
     }
     return percentagesToAmounts(DEFAULT_PERCENTAGES, profile.monthlyBudget || 10000)
   })
@@ -87,31 +94,9 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-emerald-50/30">
-      {/* Onboarding Header & Step Indicator */}
-      <div className="w-full max-w-2xl mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={onBack}
-            className="text-sm font-semibold flex items-center gap-1.5 cursor-pointer hover:text-teal-700 transition-colors"
-            style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}
-          >
-            ← Back
-          </button>
-          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-teal-100 text-teal-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-            Step 3 of 4
-          </span>
-        </div>
-        <div className="flex gap-2">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className="h-1.5 flex-1 rounded-full transition-all"
-              style={{ background: s <= 3 ? '#0d9488' : '#e2e8f0' }}
-            />
-          ))}
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-12">
+      {/* Onboarding Header */}
+      <OnboardingHeader currentStep={4} onBack={onBack} />
 
       <div className="w-full max-w-2xl space-y-6 fade-in">
         {/* 1. SCREEN TITLE */}
@@ -138,234 +123,164 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
             </div>
 
             {/* Prominent Monthly Budget Display */}
-            <div className="flex items-baseline gap-2 mb-4 p-4 rounded-xl bg-slate-900 text-white shadow-inner">
-              <span className="text-xs text-teal-400 font-semibold uppercase tracking-wider font-mono-data">Budget</span>
-              <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white font-mono-data">
-                ₹{monthlyBudget.toLocaleString()}
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-teal-800" style={{ fontFamily: 'Sora, sans-serif' }}>₹</span>
+                <input
+                  type="number"
+                  min={2000}
+                  step={500}
+                  value={monthlyBudget}
+                  onChange={(e) => handleBudgetSelect(Number(e.target.value))}
+                  className="font-mono-data text-3xl font-extrabold text-slate-900 bg-transparent border-none outline-none w-44"
+                />
+              </div>
+              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                Active Cycle
               </span>
-              <span className="text-slate-400 text-sm font-medium">/ month</span>
             </div>
 
-            {/* Budget Presets Selector */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {BUDGET_OPTIONS.map((b) => (
+            {/* Quick Pick Pills */}
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              {BUDGET_OPTIONS.map((amt) => (
                 <button
-                  key={b}
+                  key={amt}
                   type="button"
-                  onClick={() => handleBudgetSelect(b)}
-                  className="py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer hover:border-teal-500"
-                  style={{
-                    background: monthlyBudget === b ? '#0d9488' : '#f8fafc',
-                    color: monthlyBudget === b ? 'white' : '#0f172a',
-                    borderColor: monthlyBudget === b ? '#0d9488' : '#e2e8f0',
-                    fontFamily: 'JetBrains Mono, monospace',
-                  }}
+                  onClick={() => handleBudgetSelect(amt)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-mono-data ${
+                    monthlyBudget === amt
+                      ? 'bg-teal-700 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
-                  ₹{(b / 1000).toFixed(0)}K
+                  ₹{amt.toLocaleString()}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 3. SMARTWEAR EXPLANATION CARD */}
-          <div className="p-4 rounded-xl border flex items-start gap-3 bg-teal-50/70" style={{ borderColor: '#99f6e4' }}>
-            <div className="w-8 h-8 rounded-lg bg-teal-600 text-white flex items-center justify-center shrink-0 text-base font-bold">
-              💡
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-teal-900 mb-0.5" style={{ fontFamily: 'Sora, sans-serif' }}>
-                Adaptive Budget Engine
-              </p>
-              <p className="text-sm text-teal-950 font-medium leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                SmartWear will dynamically adjust your allocation based on your actual spending, fitness progress and current needs.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 6. MAKE THE USP VISUALLY CLEAR (FEATURE FLOW CARD) */}
-        <div className="card p-5 border bg-slate-900 text-white rounded-2xl space-y-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
+          {/* 3. SMARTWEAR FEATURE CALLOUT */}
+          <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/50 space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-widest text-teal-300" style={{ fontFamily: 'Sora, sans-serif' }}>
-                SMART FITNESS BUDGET
-              </span>
+              <span className="text-teal-700 font-bold text-sm">💡 How SmartWear Budget Works</span>
             </div>
-            <span className="text-xs italic text-slate-400" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Your budget evolves with you.
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
-            {[
-              { label: 'Initial allocation', icon: '🎯' },
-              { label: 'Actual spending', icon: '💳' },
-              { label: 'Fitness progress', icon: '📈' },
-              { label: 'Current needs', icon: '🥗' },
-              { label: 'Smart reallocation', icon: '⚡' },
-            ].map((step, idx, arr) => (
-              <div key={step.label} className="flex items-center gap-1.5">
-                <div className="flex-1 p-2 rounded-xl bg-slate-800/90 border border-slate-700/80 text-center flex flex-col items-center justify-center gap-1">
-                  <span className="text-base">{step.icon}</span>
-                  <span className="text-[11px] font-semibold text-slate-200 leading-tight" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {step.label}
-                  </span>
-                </div>
-                {idx < arr.length - 1 && (
-                  <span className="hidden sm:inline text-slate-500 font-bold text-xs">→</span>
-                )}
-              </div>
-            ))}
+            <p className="text-xs text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Your money is divided into target categories based on your fitness goals. If you spend less in one category (like gear), SmartWear dynamically reallocates funds to essential areas like post-workout nutrition or recovery.
+            </p>
           </div>
         </div>
 
-        {/* 4. INITIAL ALLOCATION SECTION & 7. REMOVE MANUAL-PERCENTAGE FEEL */}
+        {/* 4. INITIAL CATEGORY ALLOCATION SECTION */}
         <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b pb-3 border-slate-100">
             <div>
-              <h3 className="font-bold text-lg text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
-                Initial allocation
+              <h3 className="font-bold text-base text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                Initial Category Allocation
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Primary allocation amounts in rupees (₹). Adjust individual amounts if needed.
+              <p className="text-xs text-slate-500">
+                Adjust how much you plan to allocate for each area.
               </p>
             </div>
-            <div className="text-right">
-              <span className="text-xs text-slate-400 font-semibold uppercase block">Target Total</span>
-              <span className="font-mono-data font-bold text-base text-slate-900">₹{monthlyBudget.toLocaleString()}</span>
+            <div className="text-xs font-semibold self-start sm:self-auto">
+              <span className="font-mono-data font-bold text-slate-700">Total: </span>
+              <span className={`font-mono-data font-black text-sm ${isBalanced ? 'text-emerald-600' : 'text-amber-600'}`}>
+                ₹{totalAllocated.toLocaleString()}
+              </span>
+              <span className="text-slate-400 font-mono-data"> / ₹{monthlyBudget.toLocaleString()}</span>
             </div>
           </div>
 
-          {/* Allocation List */}
-          <div className="space-y-3.5">
+          {/* Category Sliders & Amount Pickers */}
+          <div className="space-y-4">
             {CATEGORIES.map((cat) => {
-              const amt = amounts[cat.key] ?? 0
-              const pct = currentPcts[cat.key] ?? 0
+              const val = amounts[cat.key] || 0
+              const pct = currentPcts[cat.key] || 0
 
               return (
-                <div
-                  key={cat.key}
-                  className="p-3.5 rounded-xl border bg-slate-50/50 hover:bg-white transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-slate-200"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-lg shadow-2xs">
-                      {cat.icon}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                <div key={cat.key} className="p-4 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-all space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">{cat.icon}</span>
+                      <div>
+                        <span className="font-bold text-sm text-slate-900 block" style={{ fontFamily: 'Sora, sans-serif' }}>
                           {cat.label}
                         </span>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-200/70 text-slate-700 font-mono-data">
-                          {pct}%
+                        <span className="text-xs text-slate-500 font-mono-data font-medium">
+                          {pct}% of budget
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5 font-mono-data">
-                        Primary: <span className="font-bold text-slate-700">₹{amt.toLocaleString()}</span>
-                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleStepAmount(cat.key, -100)}
+                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold flex items-center justify-center hover:bg-slate-100 cursor-pointer text-sm"
+                      >
+                        -
+                      </button>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">₹</span>
+                        <input
+                          type="number"
+                          step={50}
+                          value={val}
+                          onChange={(e) => handleAmountChange(cat.key, Number(e.target.value))}
+                          className="w-24 pl-5 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 text-right font-mono-data outline-none focus:border-teal-600"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleStepAmount(cat.key, 100)}
+                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold flex items-center justify-center hover:bg-slate-100 cursor-pointer text-sm"
+                      >
+                        +
+                      </button>
                     </div>
                   </div>
 
-                  {/* Rupee Amount Controls */}
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <button
-                      type="button"
-                      onClick={() => handleStepAmount(cat.key, -50)}
-                      className="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-sm flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                      title="Decrease ₹50"
-                    >
-                      -
-                    </button>
-
-                    <div className="relative flex items-center">
-                      <span className="absolute left-3 text-xs font-bold text-slate-400 font-mono-data">₹</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={50}
-                        value={amt === 0 ? '' : amt}
-                        placeholder="0"
-                        onChange={(e) => handleAmountChange(cat.key, Number(e.target.value))}
-                        className="w-28 pl-7 pr-3 py-1.5 text-sm font-bold font-mono-data rounded-lg border outline-none text-right bg-white focus:border-teal-600 transition-all shadow-2xs"
-                        style={{ borderColor: '#cbd5e1', color: cat.color }}
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleStepAmount(cat.key, 50)}
-                      className="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-sm flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                      title="Increase ₹50"
-                    >
-                      +
-                    </button>
-                  </div>
+                  {/* Range Slider */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={monthlyBudget}
+                    step={50}
+                    value={val}
+                    onChange={(e) => handleAmountChange(cat.key, Number(e.target.value))}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                  />
                 </div>
               )
             })}
           </div>
 
-          {/* Allocation Total Summary & Validation Message */}
-          <div className="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 text-white" style={{ borderColor: '#334155' }}>
-            <div>
-              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider font-mono-data">TOTAL ALLOCATED</span>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-2xl font-extrabold font-mono-data text-teal-400">
-                  ₹{totalAllocated.toLocaleString()}
-                </span>
-                <span className="text-xs text-slate-300 font-mono-data">
-                  / ₹{monthlyBudget.toLocaleString()} (100%)
-                </span>
-              </div>
+          {/* Validation Feedback Banner */}
+          {validationError && (
+            <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-semibold flex items-center gap-2">
+              <span className="text-base">⚠️</span>
+              <span>{validationError}</span>
             </div>
-
-            <div>
-              <span
-                className="text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm"
-                style={{
-                  background: isBalanced ? '#166534' : '#991b1b',
-                  color: 'white',
-                  border: `1px solid ${isBalanced ? '#22c55e' : '#f87171'}`,
-                }}
-              >
-                <span>{isBalanced ? '✓' : '⚠️'}</span>
-                <span>
-                  {isBalanced
-                    ? '100% Balanced'
-                    : `Your allocation must total ₹${monthlyBudget.toLocaleString()}.`}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {!isBalanced && (
-            <p className="text-xs text-red-600 font-medium text-center">
-              {validationError || `Your allocation must total ₹${monthlyBudget.toLocaleString()}.`}
-            </p>
           )}
         </div>
 
         {/* 5. SMART REALLOCATION TOGGLE CARD */}
-        <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-3" style={{ borderColor: '#e2e8f0' }}>
+        <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-4" style={{ borderColor: '#e2e8f0' }}>
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                <span className="text-base">✨</span>
+                <span className="font-bold text-slate-900 text-sm" style={{ fontFamily: 'Sora, sans-serif' }}>
                   Enable Smart Reallocation
-                </h3>
-                {smartReallocation && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 uppercase">
-                    ACTIVE ✓
-                  </span>
-                )}
+                </span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
+                  Recommended
+                </span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                SmartWear can automatically rebalance your budget when your spending, fitness progress, or needs change.
+              <p className="text-xs text-slate-500 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Allow SmartWear to automatically adjust monthly category limits if unused money is detected and other areas need support.
               </p>
             </div>
 
-            {/* Toggle Switch */}
             <button
               type="button"
               role="switch"
@@ -394,18 +309,18 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
           </div>
         </div>
 
-        {/* 10. CONTINUE BUTTON */}
+        {/* 6. COMPLETE SETUP BUTTON */}
         <button
           onClick={handleContinue}
           disabled={!isBalanced}
-          className={`w-full py-4 text-base font-bold rounded-xl transition-all shadow-md ${
+          className={`w-full py-4 text-base font-bold rounded-xl transition-all shadow-md cursor-pointer ${
             isBalanced
-              ? 'btn-primary cursor-pointer hover:shadow-lg'
+              ? 'btn-primary hover:shadow-lg'
               : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300 shadow-none'
           }`}
         >
           {isBalanced
-            ? 'Continue →'
+            ? 'Finish Setup →'
             : `Your allocation must total ₹${monthlyBudget.toLocaleString()}.`}
         </button>
       </div>

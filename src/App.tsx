@@ -118,13 +118,7 @@ export default function App() {
     <div className="min-h-screen" style={{ background: '#f0fdf9' }}>
       {screen === 'landing' && (
         <Landing
-          onStart={() => {
-            if (userId) {
-              setScreen('goal')
-            } else {
-              setIsAuthModalOpen(true)
-            }
-          }}
+          onStart={() => setScreen('goal')}
           onDemo={() => {
             setIsDemoMode(true)
             setScreen('dashboard')

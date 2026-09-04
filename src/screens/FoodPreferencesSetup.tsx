@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { UserProfile } from '../App'
 import type { DietType, FoodStyle } from '../data/foods'
+import OnboardingHeader from '../components/OnboardingHeader'
 
 const DIET_TYPES: { id: DietType; label: string; icon: string; desc: string }[] = [
   { id: 'vegetarian', label: 'Vegetarian', icon: '🌿', desc: 'Plant foods + dairy, no meat or eggs' },
@@ -55,26 +56,11 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      {/* Progress */}
-      <div className="w-full max-w-2xl mb-8">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <button onClick={onBack} className="text-sm flex items-center gap-1" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
-            ← Back
-          </button>
-          <button onClick={onSkip} className="text-xs font-semibold px-3 py-1 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all">
-            Skip for now →
-          </button>
-        </div>
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <div key={s} className="h-1 flex-1 rounded-full" style={{ background: s <= 4 ? '#0d9488' : '#e2e8f0' }} />
-          ))}
-        </div>
-        <p className="text-xs mt-2" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>Step 4 of 5 · Food Preferences</p>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-12">
+      {/* Onboarding Header */}
+      <OnboardingHeader currentStep={3} onBack={onBack} onSkip={onSkip} />
 
-      <div className="w-full max-w-2xl fade-in space-y-6">
+      <div className="w-full max-w-2xl space-y-6 fade-in">
         <div>
           <h2 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.875rem', color: '#0f172a', marginBottom: '0.5rem' }}>
             Personalize your food choices
@@ -85,7 +71,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
         </div>
 
         {/* 1. Diet Type Selector */}
-        <div className="card p-5">
+        <div className="card p-5 border shadow-xs bg-white rounded-2xl" style={{ borderColor: '#e2e8f0' }}>
           <label className="block text-sm font-semibold mb-3" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
             Select Diet Type
           </label>
@@ -95,7 +81,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
                 key={dt.id}
                 type="button"
                 onClick={() => setDiet(dt.id)}
-                className="text-left p-3.5 rounded-xl border-2 transition-all"
+                className="text-left p-3.5 rounded-xl border-2 transition-all cursor-pointer"
                 style={{
                   background: diet === dt.id ? '#ccfbf1' : 'white',
                   borderColor: diet === dt.id ? '#0d9488' : '#e2e8f0',
@@ -114,7 +100,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
         </div>
 
         {/* 2. Food Style Selector */}
-        <div className="card p-5">
+        <div className="card p-5 border shadow-xs bg-white rounded-2xl" style={{ borderColor: '#e2e8f0' }}>
           <label className="block text-sm font-semibold mb-3" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
             Cuisine / Food Style
           </label>
@@ -124,7 +110,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
                 key={fs.id}
                 type="button"
                 onClick={() => setStyle(fs.id)}
-                className="p-3 rounded-xl text-center border-2 transition-all"
+                className="p-3 rounded-xl text-center border-2 transition-all cursor-pointer"
                 style={{
                   background: style === fs.id ? '#0d9488' : 'white',
                   color: style === fs.id ? 'white' : '#0f172a',
@@ -139,7 +125,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
         </div>
 
         {/* 3. Exclude Ingredients / Allergies */}
-        <div className="card p-5">
+        <div className="card p-5 border shadow-xs bg-white rounded-2xl" style={{ borderColor: '#e2e8f0' }}>
           <label className="block text-sm font-semibold mb-2" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
             Exclude Foods / Ingredients (Strict Exclusions)
           </label>
@@ -151,7 +137,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
                   key={item}
                   type="button"
                   onClick={() => toggleExclusion(item)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                     active ? 'bg-red-100 border-red-400 text-red-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                   }`}
                   style={{ fontFamily: 'Inter, sans-serif' }}
@@ -164,7 +150,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
         </div>
 
         {/* 4. Preferred Foods */}
-        <div className="card p-5">
+        <div className="card p-5 border shadow-xs bg-white rounded-2xl" style={{ borderColor: '#e2e8f0' }}>
           <label className="block text-sm font-semibold mb-2" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
             Preferred Foods / Staple Ingredients
           </label>
@@ -176,7 +162,7 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
                   key={item}
                   type="button"
                   onClick={() => togglePreference(item)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                     active ? 'bg-teal-100 border-teal-500 text-teal-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                   }`}
                   style={{ fontFamily: 'Inter, sans-serif' }}
@@ -188,8 +174,11 @@ export default function FoodPreferencesSetup({ profile, onChange, onNext, onBack
           </div>
         </div>
 
-        <button onClick={handleContinue} className="btn-primary w-full py-3.5 text-base">
-          Continue to Budget Setup →
+        <button
+          onClick={handleContinue}
+          className="btn-primary w-full py-4 text-base font-bold shadow-md hover:shadow-lg cursor-pointer"
+        >
+          Continue →
         </button>
       </div>
     </div>
