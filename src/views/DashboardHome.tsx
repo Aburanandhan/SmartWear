@@ -4,6 +4,9 @@ import { GOAL_LABELS } from '../App'
 import type { DashView } from '../screens/Dashboard'
 import { fetchTodayHydration, logHydrationIntake } from '../services/hydrationService'
 import { fetchUserExpenses, type ExpenseItem } from '../services/budgetService'
+import { evaluateSmartAdjustment, saveAdjustmentState } from '../services/smartAdjustment/smartAdjustmentEngine'
+import type { SmartAdjustment } from '../services/smartAdjustment/types'
+import SmartAdjustmentCard from '../components/SmartAdjustmentCard'
 
 interface Props {
   profile: UserProfile
@@ -192,6 +195,54 @@ export default function DashboardHome({ profile, userId, onNavigate, onUpdatePro
           </button>
         </div>
       </div>
+
+      {/* PENDING SMART ADJUSTMENT CARD */}
+      {(() => {
+        const adj = evaluateSmartAdjustment({
+          sensorReading: {
+            heartRate: 158,
+            temperature: 37.2,
+            spo2: 98,
+            motion: 'HIGH_INTENSITY',
+            steps: 1200,
+            workoutActive: true,
+            deviceId: 'live-stream',
+            timestamp: new Date().toISOString(),
+          },
+          workoutActive: true,
+          profile,
+          hydrationToday,
+          expenses,
+        })
+        if (!adj) return null
+        return (
+          <SmartAdjustmentCard
+            adjustment={adj}
+            profile={profile}
+            userId={userId}
+            onApply={async (appliedAdj) => {
+              const updatedAdj: SmartAdjustment = { ...appliedAdj, status: 'applied', appliedAt: new Date().toISOString() }
+              if (appliedAdj.hydrationAdjustment?.additionalMl) {
+                await handleAddWater(appliedAdj.hydrationAdjustment.additionalMl)
+              }
+              if (appliedAdj.smartReallocationEnabled && appliedAdj.budgetAdjustment && onUpdateProfile) {
+                const alloc = profile.budgetCategories || { food: 4550, supplements: 2400, hydration: 1100, recovery: 1000, other: 950 }
+                const fromCat = appliedAdj.budgetAdjustment.fromCategory
+                const toCat = appliedAdj.budgetAdjustment.toCategory
+                const amt = appliedAdj.budgetAdjustment.amount
+                onUpdateProfile({
+                  budgetCategories: {
+                    ...alloc,
+                    [fromCat]: Math.max(0, (alloc[fromCat] || 0) - amt),
+                    [toCat]: (alloc[toCat] || 0) + amt,
+                  },
+                })
+              }
+              await saveAdjustmentState(updatedAdj, userId)
+            }}
+          />
+        )
+      })()}
 
       {/* 3. TODAY'S PLAN & 4. PRIMARY CTA */}
       <div className="card p-6 border shadow-xs bg-white rounded-2xl space-y-5" style={{ borderColor: '#e2e8f0' }}>

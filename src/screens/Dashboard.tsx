@@ -175,6 +175,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
               onMotionChange={setMotionState}
               userId={userId || undefined}
               onWorkoutToggle={setWorkoutActive}
+              onUpdateProfile={onUpdateProfile}
             />
           )}
           {view === 'activity' && (
@@ -207,7 +208,10 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
           )}
           {view === 'alerts' && (
             <Alerts
+              profile={profile}
+              reading={reading}
               userId={userId || undefined}
+              onUpdateProfile={onUpdateProfile}
               onAlertsRead={() => setAlertCount(0)}
             />
           )}

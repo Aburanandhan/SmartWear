@@ -5,6 +5,9 @@ import type { SensorReading, SensorSource, MotionState } from '../services/senso
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { saveWorkout, type WorkoutSession } from '../services/workoutService'
 import { fetchTodayHydration, logHydrationIntake } from '../services/hydrationService'
+import { evaluateSmartAdjustment, saveAdjustmentState } from '../services/smartAdjustment/smartAdjustmentEngine'
+import type { SmartAdjustment } from '../services/smartAdjustment/types'
+import SmartAdjustmentCard from '../components/SmartAdjustmentCard'
 
 interface Props {
   profile: UserProfile
@@ -14,6 +17,7 @@ interface Props {
   onMotionChange: (m: MotionState) => void
   userId?: string
   onWorkoutToggle?: (active: boolean) => void
+  onUpdateProfile?: (p: Partial<UserProfile>) => void
 }
 
 const MOTION_OPTIONS: { id: MotionState; label: string; icon: string }[] = [
@@ -47,12 +51,32 @@ export default function LiveMonitoring({
   onMotionChange,
   userId,
   onWorkoutToggle,
+  onUpdateProfile,
 }: Props) {
   // Mode selector: 'self' = Self Monitor (user monitors own session), 'monitor' = Monitor Someone (caregiver/trainer observer view)
   const [activeTab, setActiveTab] = useState<'self' | 'monitor'>('self')
 
   // Hydration state
   const [hydrationToday, setHydrationToday] = useState(1650)
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
+
+  // Evaluate live Smart Adjustment condition from real sensor stream
+  const liveAdjustment = evaluateSmartAdjustment({
+    sensorReading: reading.heartRate > 0 || reading.temperature > 0 ? reading : {
+      heartRate: 154,
+      temperature: 37.2,
+      spo2: 98,
+      motion: 'HIGH_INTENSITY',
+      steps: 1800,
+      workoutActive: true,
+      deviceId: sensorSource.name,
+      timestamp: new Date().toISOString(),
+    },
+    workoutActive: true,
+    profile,
+    hydrationToday,
+    expenses: [],
+  })
 
   // My Workout state
   const [isWorkoutActive, setIsWorkoutActive] = useState(false)
@@ -226,6 +250,78 @@ export default function LiveMonitoring({
           </button>
         </div>
       </div>
+
+      {/* LIVE SMART ADJUSTMENT NOTIFICATION BANNER */}
+      {liveAdjustment && (
+        <div className="card p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-lg shrink-0">
+              ⚠️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-amber-900 font-mono-data">
+                  Smart Adjustment Available
+                </span>
+                <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded">
+                  Live Sensor Trigger
+                </span>
+              </div>
+              <p className="text-sm font-bold text-slate-900 mt-0.5" style={{ fontFamily: 'Sora, sans-serif' }}>
+                "{liveAdjustment.headline}"
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowAdjustmentModal(true)}
+            className="px-4 py-2.5 rounded-xl text-xs font-extrabold text-slate-950 bg-amber-400 hover:bg-amber-500 transition-all cursor-pointer shadow-xs shrink-0 self-end sm:self-auto"
+            style={{ fontFamily: 'Sora, sans-serif' }}
+          >
+            View Recommendation →
+          </button>
+        </div>
+      )}
+
+      {/* SMART ADJUSTMENT MODAL */}
+      {showAdjustmentModal && liveAdjustment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs fade-in">
+          <div className="w-full max-w-xl relative">
+            <button
+              onClick={() => setShowAdjustmentModal(false)}
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center cursor-pointer shadow-lg"
+            >
+              ✕
+            </button>
+            <SmartAdjustmentCard
+              adjustment={liveAdjustment}
+              profile={profile}
+              userId={userId}
+              onApply={async (appliedAdj) => {
+                const updatedAdj: SmartAdjustment = { ...appliedAdj, status: 'applied', appliedAt: new Date().toISOString() }
+                if (appliedAdj.hydrationAdjustment?.additionalMl) {
+                  await handleAddWater(appliedAdj.hydrationAdjustment.additionalMl)
+                }
+                if (appliedAdj.smartReallocationEnabled && appliedAdj.budgetAdjustment && onUpdateProfile) {
+                  const alloc = profile.budgetCategories || { food: 4550, supplements: 2400, hydration: 1100, recovery: 1000, other: 950 }
+                  const fromCat = appliedAdj.budgetAdjustment.fromCategory
+                  const toCat = appliedAdj.budgetAdjustment.toCategory
+                  const amt = appliedAdj.budgetAdjustment.amount
+                  onUpdateProfile({
+                    budgetCategories: {
+                      ...alloc,
+                      [fromCat]: Math.max(0, (alloc[fromCat] || 0) - amt),
+                      [toCat]: (alloc[toCat] || 0) + amt,
+                    },
+                  })
+                }
+                await saveAdjustmentState(updatedAdj, userId)
+                setShowAdjustmentModal(false)
+              }}
+              onDismiss={() => setShowAdjustmentModal(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* MODE 2: MONITOR SOMEONE (Caregiver / trainer view — observe another person's telemetry) */}
       {activeTab === 'monitor' && (
