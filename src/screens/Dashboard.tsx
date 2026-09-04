@@ -162,6 +162,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
             <DashboardHome
               profile={profile}
               userId={userId || undefined}
+              sensorReading={reading}
               onNavigate={setView}
               onUpdateProfile={onUpdateProfile}
             />

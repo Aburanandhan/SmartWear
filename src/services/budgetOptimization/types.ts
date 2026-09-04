@@ -56,3 +56,72 @@ export interface OptimizationResult {
   smartReallocationEnabled: boolean
   timestamp: string
 }
+
+// ═══════════════════════════════════════════════════════════
+// DYNAMIC BUDGET REALLOCATION TYPES
+// ═══════════════════════════════════════════════════════════
+
+export interface SourceCategoryUnused {
+  category: CategoryKey
+  label: string
+  icon: string
+  allocated: number
+  spent: number
+  unused: number
+  safeAmount: number
+  daysRemaining: number
+  runRate: number
+}
+
+export interface DestinationAllocation {
+  category: CategoryKey | 'reserve'
+  label: string
+  icon: string
+  currentAllocation: number
+  recommendedIncrease: number
+  newAllocation: number
+  reason: string
+  priorityScore: number
+}
+
+export interface ReallocationOpportunity {
+  status: 'available' | 'balanced' | 'low_data' | 'disabled'
+  totalUnused: number
+  totalSafeToReallocate: number
+  sources: SourceCategoryUnused[]
+  destinations: DestinationAllocation[]
+  reserveAmount: number
+  reallocatedAmount: number
+  summaryHeadline: string
+  recommendationList: {
+    category: string
+    label: string
+    icon: string
+    amount: number
+  }[]
+  detailedReasoning: {
+    sourcesSummary: string
+    workoutContext: string
+    hydrationContext: string
+    spendingPressure: string
+    reserveExplanation: string
+    fullExplanation: string
+  }
+  beforeAllocations: Record<string, number>
+  afterAllocations: Record<string, number>
+  matchScore: number
+  smartReallocationEnabled: boolean
+  timestamp: string
+}
+
+export interface ReallocationAuditLog {
+  id?: string
+  userId?: string
+  sourceReductions: Record<string, number>
+  destinationIncreases: Record<string, number>
+  reserveAmount: number
+  totalReallocated: number
+  reason: string
+  timestamp: string
+  status: 'applied' | 'dismissed'
+}

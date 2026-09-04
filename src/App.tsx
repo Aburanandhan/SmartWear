@@ -30,7 +30,7 @@ export interface UserProfile {
   activityLevel: string
   primaryExercise: string
   monthlyBudget: number
-  budgetCategories: { food: number; supplements: number; hydration: number; recovery: number; other: number }
+  budgetCategories: { food: number; supplements: number; hydration: number; recovery: number; other: number; reserve?: number }
   smartReallocation?: boolean
   dietType: DietType
   foodStyle: FoodStyle

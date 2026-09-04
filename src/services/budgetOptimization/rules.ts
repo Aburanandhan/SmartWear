@@ -21,14 +21,31 @@ export const GOAL_CATEGORY_WEIGHTS: Record<Goal, Record<CategoryKey, number>> = 
 export const MIN_OPTIMIZE_AMOUNT = 50
 
 /**
+ * Minimum unused amount (₹) in a category to be considered for reallocation
+ */
+export const MIN_REALLOCATE_AMOUNT = 50
+
+/**
  * Category metadata for display
  */
-export const CATEGORY_DISPLAY: Record<CategoryKey, { label: string; icon: string }> = {
+export const CATEGORY_DISPLAY: Record<CategoryKey | 'reserve', { label: string; icon: string }> = {
   food: { label: 'Food', icon: '🥗' },
   supplements: { label: 'Supplements', icon: '💊' },
   hydration: { label: 'Hydration', icon: '💧' },
   recovery: { label: 'Recovery', icon: '🧘' },
   other: { label: 'Gear', icon: '🏋️' },
+  reserve: { label: 'Reserve', icon: '🛡️' },
+}
+
+/**
+ * Category safety factors: minimum portion of allocated budget to protect for expected future spend
+ */
+export const CATEGORY_SAFETY_FACTORS: Record<CategoryKey, number> = {
+  food: 0.50,
+  supplements: 0.25,
+  hydration: 0.30,
+  recovery: 0.25,
+  other: 0.10,
 }
 
 /**

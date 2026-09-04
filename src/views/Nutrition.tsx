@@ -448,7 +448,7 @@ export default function Nutrition({ profile, reading, userId }: Props) {
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${meal.goalScore >= 80 ? 'bg-teal-200 text-teal-900' : 'bg-slate-200 text-slate-700'}`}>
                           🎯 Goal {meal.goalScore}%
                         </span>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${meal.dietScore !== undefined && meal.dietScore >= 80 ? 'bg-teal-200 text-teal-900' : 'bg-slate-200 text-slate-700'}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${(meal as any).dietScore !== undefined && (meal as any).dietScore >= 80 ? 'bg-teal-200 text-teal-900' : 'bg-slate-200 text-slate-700'}`}>
                           🥗 Diet ✓
                         </span>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${meal.prefScore >= 70 ? 'bg-teal-200 text-teal-900' : 'bg-slate-200 text-slate-700'}`}>
