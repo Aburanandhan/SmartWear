@@ -21,6 +21,9 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 
     if (!profileData) return null
 
+    const rawAlloc = budgetData?.category_allocations || {}
+    const smartReallocation = rawAlloc._smartReallocation !== undefined ? Boolean(rawAlloc._smartReallocation) : true
+
     return {
       goal: profileData.goal || 'gym',
       age: profileData.age || 24,
@@ -28,14 +31,15 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
       weight: Number(profileData.weight) || 70,
       activityLevel: profileData.activity_level || 'moderate',
       primaryExercise: profileData.primary_exercise || 'Running',
-      monthlyBudget: budgetData?.monthly_budget ? Number(budgetData.monthly_budget) : 6000,
-      budgetCategories: budgetData?.category_allocations || {
-        food: 3000,
-        supplements: 1200,
-        hydration: 600,
-        recovery: 600,
-        other: 600,
+      monthlyBudget: budgetData?.monthly_budget ? Number(budgetData.monthly_budget) : 10000,
+      budgetCategories: {
+        food: Number(rawAlloc.food) || 4550,
+        supplements: Number(rawAlloc.supplements) || 2400,
+        hydration: Number(rawAlloc.hydration) || 1100,
+        recovery: Number(rawAlloc.recovery) || 1000,
+        other: Number(rawAlloc.other) || 950,
       },
+      smartReallocation,
       dietType: profileData.diet_type || 'vegetarian',
       foodStyle: profileData.food_style || 'mixed-indian',
       excludedFoods: Array.isArray(profileData.excluded_foods) ? profileData.excluded_foods : [],
@@ -66,6 +70,11 @@ export async function saveUserProfile(userId: string, profile: UserProfile): Pro
 
     if (pErr) throw pErr
 
+    const categoryAllocationsPayload = {
+      ...profile.budgetCategories,
+      _smartReallocation: profile.smartReallocation ?? true,
+    }
+
     // Save budget info
     const { data: existingBudgets } = await supabase
       .from('budgets')
@@ -81,7 +90,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile): Pro
         .from('budgets')
         .update({
           monthly_budget: profile.monthlyBudget,
-          category_allocations: profile.budgetCategories,
+          category_allocations: categoryAllocationsPayload,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingBudget.id)
@@ -89,7 +98,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile): Pro
       await supabase.from('budgets').insert({
         user_id: userId,
         monthly_budget: profile.monthlyBudget,
-        category_allocations: profile.budgetCategories,
+        category_allocations: categoryAllocationsPayload,
       })
     }
 

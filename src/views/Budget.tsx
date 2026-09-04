@@ -73,11 +73,20 @@ export default function Budget({ profile, userId, onUpdateProfile }: Props) {
       {/* Header & Metrics Summary */}
       <div className="card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
-            Monthly Health Budget
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold" style={{ fontFamily: 'Sora, sans-serif', color: '#0f172a' }}>
+              Smart Fitness Budget
+            </h2>
+            {profile.smartReallocation !== false && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 uppercase">
+                Smart Reallocation Active ✓
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-            Track and optimize your fitness & wellness spending (Min ₹2,000 threshold)
+            {profile.smartReallocation !== false
+              ? 'Adaptive budgeting active · Allocation updates based on actual spending and fitness needs'
+              : 'Track and optimize your fitness & wellness spending (Min ₹2,000 threshold)'}
           </p>
         </div>
 

@@ -31,6 +31,7 @@ export interface UserProfile {
   primaryExercise: string
   monthlyBudget: number
   budgetCategories: { food: number; supplements: number; hydration: number; recovery: number; other: number }
+  smartReallocation?: boolean
   dietType: DietType
   foodStyle: FoodStyle
   excludedFoods: string[]
@@ -44,8 +45,9 @@ const DEFAULT_PROFILE: UserProfile = {
   weight: 68,
   activityLevel: 'active',
   primaryExercise: 'Running',
-  monthlyBudget: 6000,
-  budgetCategories: { food: 3000, supplements: 1200, hydration: 600, recovery: 600, other: 600 },
+  monthlyBudget: 10000,
+  budgetCategories: { food: 4550, supplements: 2400, hydration: 1100, recovery: 1000, other: 950 },
+  smartReallocation: true,
   dietType: 'vegetarian',
   foodStyle: 'south-indian',
   excludedFoods: ['Peanuts'],

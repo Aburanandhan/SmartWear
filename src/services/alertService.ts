@@ -24,7 +24,7 @@ export async function fetchAlerts(userId?: string): Promise<SmartAlert[]> {
       id: 'a2',
       category: 'Budget',
       severity: 'high',
-      message: 'Monthly health budget has reached 78% of ₹6,000 threshold. ₹1,320 remaining.',
+      message: 'Smart Fitness Budget has reached 78% threshold. ₹2,200 remaining.',
       read: false,
       timestamp: new Date(Date.now() - 1000 * 3600 * 3).toISOString(),
     },
