@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { UserProfile } from '../App'
 import {
   CATEGORIES,
@@ -27,6 +27,11 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
   const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
     return Math.max(2000, profile.monthlyBudget || 10000)
   })
+  const [isCustomBudgetOpen, setIsCustomBudgetOpen] = useState(false)
+  const [customBudget, setCustomBudget] = useState('')
+  const [customBudgetError, setCustomBudgetError] = useState('')
+  const [adjustedCategory, setAdjustedCategory] = useState<CategoryKey | null>(null)
+  const profileUpdateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [amounts, setAmounts] = useState<Record<CategoryKey, number>>(() => {
     if (profile.budgetCategories && Object.values(profile.budgetCategories).some((v) => v > 0)) {
@@ -48,7 +53,10 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
 
   const handleBudgetSelect = (newBudget: number) => {
     const validBudget = Math.max(2000, newBudget)
+    if (profileUpdateTimeout.current) clearTimeout(profileUpdateTimeout.current)
     setMonthlyBudget(validBudget)
+    setIsCustomBudgetOpen(false)
+    setCustomBudgetError('')
 
     // Calculate initial allocations for new budget
     const scaledAmounts = percentagesToAmounts(DEFAULT_PERCENTAGES, validBudget)
@@ -61,15 +69,29 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
     })
   }
 
+  const handleCustomBudgetSelect = () => {
+    const enteredBudget = Number(customBudget)
+    if (!Number.isFinite(enteredBudget) || enteredBudget <= 10000) {
+      setCustomBudgetError('Enter an amount greater than ₹10,000.')
+      return
+    }
+
+    handleBudgetSelect(Math.round(enteredBudget))
+  }
+
   const handleAmountChange = (key: CategoryKey, rawVal: number) => {
     const val = Math.max(0, Math.round(rawVal))
     const updatedAmounts = { ...amounts, [key]: val }
     setAmounts(updatedAmounts)
-    onChange({
-      budgetCategories: updatedAmounts,
-      monthlyBudget,
-      smartReallocation,
-    })
+    setAdjustedCategory(key)
+    if (profileUpdateTimeout.current) clearTimeout(profileUpdateTimeout.current)
+    profileUpdateTimeout.current = setTimeout(() => {
+      onChange({
+        budgetCategories: updatedAmounts,
+        monthlyBudget,
+        smartReallocation,
+      })
+    }, 250)
   }
 
   const handleStepAmount = (key: CategoryKey, delta: number) => {
@@ -90,6 +112,12 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
   const handleContinue = () => {
     const { valid } = validateCategoryAmounts(amounts, monthlyBudget)
     if (!valid) return
+    if (profileUpdateTimeout.current) clearTimeout(profileUpdateTimeout.current)
+    onChange({
+      budgetCategories: amounts,
+      monthlyBudget,
+      smartReallocation,
+    })
     onNext()
   }
 
@@ -156,7 +184,50 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
                   ₹{amt.toLocaleString()}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustomBudgetOpen(true)
+                  setCustomBudgetError('')
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-mono-data ${
+                  isCustomBudgetOpen
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Above ₹10,000
+              </button>
             </div>
+
+            {isCustomBudgetOpen && (
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <input
+                  type="number"
+                  min={10001}
+                  step={500}
+                  value={customBudget}
+                  onChange={(e) => {
+                    setCustomBudget(e.target.value)
+                    setCustomBudgetError('')
+                  }}
+                  placeholder="Enter amount above ₹10,000"
+                  aria-label="Custom budget amount"
+                  className="min-w-0 flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm font-mono-data outline-none focus:border-teal-600"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleCustomBudgetSelect}
+                  className="px-4 py-2 rounded-xl bg-teal-700 text-white text-xs font-bold hover:bg-teal-800 cursor-pointer"
+                >
+                  Select Amount
+                </button>
+              </div>
+            )}
+            {customBudgetError && (
+              <p className="mt-2 text-xs font-semibold text-amber-700">{customBudgetError}</p>
+            )}
           </div>
 
           {/* 3. SMARTWEAR FEATURE CALLOUT */}
@@ -249,18 +320,17 @@ export default function BudgetSetup({ profile, onChange, onNext, onBack }: Props
                     onChange={(e) => handleAmountChange(cat.key, Number(e.target.value))}
                     className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
                   />
+
+                  {adjustedCategory === cat.key && validationError && (
+                    <div className="p-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-semibold flex items-center gap-2">
+                      <span className="text-base">⚠️</span>
+                      <span>{validationError}</span>
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
-
-          {/* Validation Feedback Banner */}
-          {validationError && (
-            <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-semibold flex items-center gap-2">
-              <span className="text-base">⚠️</span>
-              <span>{validationError}</span>
-            </div>
-          )}
         </div>
 
         {/* 5. SMART REALLOCATION TOGGLE CARD */}

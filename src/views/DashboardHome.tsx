@@ -432,7 +432,7 @@ export default function DashboardHome({
         </div>
 
         {/* 3 Key Pillars */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Workout Pillar */}
           <div className="p-4 rounded-xl border bg-white border-slate-200/80 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-slate-400 font-mono-data">
@@ -446,6 +446,24 @@ export default function DashboardHome({
               Primary exercise: {profile.primaryExercise || 'Running'}
             </p>
           </div>
+
+          {/* Training Plan Pillar */}
+          <button
+            type="button"
+            onClick={() => onNavigate('training-session')}
+            className="p-4 rounded-xl border bg-white border-slate-200/80 shadow-xs space-y-2 text-left transition-all hover:border-teal-300 hover:shadow-sm cursor-pointer"
+          >
+            <div className="flex items-center justify-between text-xs font-bold text-slate-400 font-mono-data">
+              <span>TRAINING PLAN</span>
+              <span>🧭 {profile.primaryExercise || 'Fitness'}</span>
+            </div>
+            <p className="font-bold text-slate-900 text-base" style={{ fontFamily: 'Sora, sans-serif' }}>
+              Personalized training plan
+            </p>
+            <p className="text-xs text-slate-500">
+              Based on your {GOAL_LABELS[profile.goal] || profile.goal} goal · View plan →
+            </p>
+          </button>
 
           {/* Nutrition Pillar */}
           <div className="p-4 rounded-xl border bg-white border-slate-200/80 shadow-xs space-y-2">
@@ -827,7 +845,20 @@ export default function DashboardHome({
 
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
                 <div>
-                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 2 · NUTRITION</span>
+                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 2 · TRAINING PLAN</span>
+                  <p className="font-bold text-sm text-slate-900">Personalized {profile.primaryExercise || 'fitness'} session</p>
+                </div>
+                <button
+                  onClick={() => { setIsPlanModalOpen(false); onNavigate('training-session') }}
+                  className="btn-primary text-xs font-bold px-3 py-2 shrink-0 cursor-pointer"
+                >
+                  View Plan →
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 3 · NUTRITION</span>
                   <p className="font-bold text-sm text-slate-900">{plan.nutrition}</p>
                 </div>
                 <button
@@ -840,7 +871,7 @@ export default function DashboardHome({
 
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
                 <div>
-                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 3 · HYDRATION</span>
+                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 4 · HYDRATION</span>
                   <p className="font-bold text-sm text-slate-900">{plan.hydrationTarget}</p>
                 </div>
                 <button

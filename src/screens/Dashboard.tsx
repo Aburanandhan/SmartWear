@@ -3,9 +3,9 @@ import type { UserProfile } from '../App'
 import { GOAL_LABELS } from '../App'
 import DashboardHome from '../views/DashboardHome'
 import LiveMonitoring from '../views/LiveMonitoring'
-import Activity from '../views/Activity'
 import Nutrition from '../views/Nutrition'
 import Budget from '../views/Budget'
+import TrainingSessionRoutine from '../components/TrainingSessionRoutine'
 import Insights from '../views/Insights'
 import Alerts from '../views/Alerts'
 import Profile from '../views/Profile'
@@ -13,14 +13,14 @@ import Settings from '../views/Settings'
 import { useSensorData } from '../hooks/useSensorData'
 import { fetchAlerts } from '../services/alertService'
 
-export type DashView = 'home' | 'live' | 'activity' | 'nutrition' | 'budget' | 'insights' | 'alerts' | 'profile' | 'settings'
+export type DashView = 'home' | 'live' | 'nutrition' | 'budget' | 'training-session' | 'insights' | 'alerts' | 'profile' | 'settings'
 
 const NAV_ITEMS: { id: DashView; label: string; icon: string }[] = [
   { id: 'home', label: 'Dashboard', icon: '⊞' },
   { id: 'live', label: 'Live Monitoring', icon: '📡' },
-  { id: 'activity', label: 'Activity', icon: '🏃' },
   { id: 'nutrition', label: 'Nutrition', icon: '🥗' },
   { id: 'budget', label: 'Budget', icon: '💰' },
+  { id: 'training-session', label: 'Training Plan', icon: '🧭' },
   { id: 'insights', label: 'Insights', icon: '📊' },
   { id: 'alerts', label: 'Alerts', icon: '🔔' },
   { id: 'profile', label: 'Profile', icon: '👤' },
@@ -179,14 +179,6 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
               onUpdateProfile={onUpdateProfile}
             />
           )}
-          {view === 'activity' && (
-            <Activity
-              profile={profile}
-              userId={userId || undefined}
-              reading={reading}
-              onWorkoutToggle={setWorkoutActive}
-            />
-          )}
           {view === 'nutrition' && (
             <Nutrition
               profile={profile}
@@ -201,6 +193,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
               onUpdateProfile={onUpdateProfile}
             />
           )}
+          {view === 'training-session' && <TrainingSessionRoutine profile={profile} />}
           {view === 'insights' && (
             <Insights
               profile={profile}
