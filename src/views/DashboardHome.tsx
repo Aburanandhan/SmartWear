@@ -17,6 +17,9 @@ import {
 import type { OptimizationResult } from '../services/budgetOptimization/types'
 import { MIN_OPTIMIZE_AMOUNT } from '../services/budgetOptimization/rules'
 
+const MIN_HYDRATION_TARGET_ML = 2000
+const MAX_HYDRATION_TARGET_ML = 6000
+
 interface Props {
   profile: UserProfile
   userId?: string
@@ -33,6 +36,7 @@ export default function DashboardHome({
   onUpdateProfile,
 }: Props) {
   const [hydrationToday, setHydrationToday] = useState(1650)
+  const [hydrationTargetMl, setHydrationTargetMl] = useState(() => profile.goal === 'athlete' || profile.goal === 'endurance' ? 3000 : 2500)
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -62,9 +66,11 @@ export default function DashboardHome({
   }
 
   const handleAddWater = async (amountMl: number) => {
-    const updated = hydrationToday + amountMl
+    const appliedAmount = amountMl < 0 ? Math.max(-hydrationToday, amountMl) : amountMl
+    const updated = hydrationToday + appliedAmount
     setHydrationToday(updated)
-    await logHydrationIntake(amountMl, userId)
+    setHydrationTargetMl((target) => Math.min(MAX_HYDRATION_TARGET_ML, Math.max(MIN_HYDRATION_TARGET_ML, target + appliedAmount)))
+    await logHydrationIntake(appliedAmount, userId)
   }
 
   // Time-of-day adaptive greeting
@@ -124,7 +130,7 @@ export default function DashboardHome({
         workout: `${profile.primaryExercise || 'Upper Body'} · Moderate`,
         workoutTime: '45 min',
         nutrition: `Protein-focused · ${profile.foodStyle || 'South Indian'} meals`,
-        hydrationTarget: '2.5 L target',
+        hydrationTarget: `${(hydrationTargetMl / 1000).toFixed(2)} L target`,
       }
     }
     if (goal === 'athlete' || goal === 'endurance') {
@@ -132,14 +138,14 @@ export default function DashboardHome({
         workout: `${profile.primaryExercise || 'Interval Running'} · High Intensity`,
         workoutTime: '50 min',
         nutrition: `Carb & Electrolyte Support · ${profile.dietType || 'Vegetarian'}`,
-        hydrationTarget: '3.0 L target',
+        hydrationTarget: `${(hydrationTargetMl / 1000).toFixed(2)} L target`,
       }
     }
     return {
       workout: `${profile.primaryExercise || 'Mobility & Cardio'} · Moderate`,
       workoutTime: '35 min',
       nutrition: `Calorie-Conscious · ${profile.dietType || 'Vegetarian'}`,
-      hydrationTarget: '2.5 L target',
+      hydrationTarget: `${(hydrationTargetMl / 1000).toFixed(2)} L target`,
     }
   }
 
@@ -483,24 +489,31 @@ export default function DashboardHome({
           <div className="p-4 rounded-xl border bg-white border-slate-200/80 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-slate-400 font-mono-data">
               <span>HYDRATION</span>
-              <span>💧 {hydrationToday} / 2500 ml</span>
             </div>
             <p className="font-bold text-slate-900 text-base" style={{ fontFamily: 'Sora, sans-serif' }}>
               {plan.hydrationTarget}
             </p>
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between gap-2 pt-1">
               <div className="w-24 bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-sky-500 h-full rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (hydrationToday / 2500) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (hydrationToday / hydrationTargetMl) * 100)}%` }}
                 />
               </div>
-              <button
-                onClick={() => handleAddWater(250)}
-                className="px-2 py-0.5 rounded bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold cursor-pointer text-xs"
-              >
-                +250ml
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleAddWater(-250)}
+                  className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer text-xs"
+                >
+                  -250ml
+                </button>
+                <button
+                  onClick={() => handleAddWater(250)}
+                  className="px-2 py-0.5 rounded bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold cursor-pointer text-xs"
+                >
+                  +250ml
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -869,18 +882,6 @@ export default function DashboardHome({
                 </button>
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-bold uppercase text-slate-400 block font-mono-data">STEP 4 · HYDRATION</span>
-                  <p className="font-bold text-sm text-slate-900">{plan.hydrationTarget}</p>
-                </div>
-                <button
-                  onClick={() => handleAddWater(250)}
-                  className="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shrink-0 cursor-pointer"
-                >
-                  +250ml Water
-                </button>
-              </div>
             </div>
           </div>
         </div>
