@@ -160,9 +160,6 @@ export default function TrainingSessionRoutine({ profile }: { profile: UserProfi
               Your onboarding details are preselected. Adjust them only when you want to explore another training plan.
             </p>
           </div>
-          <span className="hidden sm:inline-flex text-xs font-bold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
-            Frontend plan
-          </span>
         </div>
       </div>
 
