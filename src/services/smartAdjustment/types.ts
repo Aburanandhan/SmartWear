@@ -52,4 +52,11 @@ export interface EngineInput {
   profile: UserProfile
   hydrationToday: number
   expenses: { category: CategoryKey; amount: number }[]
+  smartwatchActivity?: {
+    steps?: number | null
+    activeMinutes?: number | null
+    activeCalories?: number | null
+    heartRate?: number | null
+    deviceName?: string | null
+  } | null
 }

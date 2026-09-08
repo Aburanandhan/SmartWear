@@ -226,7 +226,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
           )}
         </main>
       </div>
-      {view === 'home' && <SmartwatchWidget />}
+      {view === 'home' && <SmartwatchWidget userId={userId || undefined} />}
     </div>
   )
 }
