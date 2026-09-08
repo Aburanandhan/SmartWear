@@ -76,6 +76,15 @@ export default function App() {
     checkAuth()
   }, [])
 
+  // Guard: redirect unauthenticated users away from onboarding screens
+  useEffect(() => {
+    const onboardingScreens: Screen[] = ['goal', 'details', 'food-preferences', 'budget']
+    if (onboardingScreens.includes(screen) && !userId && !isDemoMode) {
+      setScreen('landing')
+      setIsAuthModalOpen(true)
+    }
+  }, [screen, userId, isDemoMode])
+
   const navigate = (s: Screen) => setScreen(s)
 
   const handleAuthSuccess = async (uId: string) => {
@@ -118,7 +127,7 @@ export default function App() {
     <div className="min-h-screen" style={{ background: '#f0fdf9' }}>
       {screen === 'landing' && (
         <Landing
-          onStart={() => setScreen('goal')}
+          onStart={() => setIsAuthModalOpen(true)}
           onDemo={() => {
             setIsDemoMode(true)
             setScreen('dashboard')
@@ -127,7 +136,7 @@ export default function App() {
         />
       )}
 
-      {screen === 'goal' && (
+      {screen === 'goal' && (userId || isDemoMode) && (
         <GoalSelection
           value={profile.goal}
           onChange={(g) => handleUpdateProfile({ goal: g })}
@@ -136,7 +145,7 @@ export default function App() {
         />
       )}
 
-      {screen === 'details' && (
+      {screen === 'details' && (userId || isDemoMode) && (
         <PersonalDetails
           profile={profile}
           onChange={(p) => handleUpdateProfile(p)}
@@ -145,7 +154,7 @@ export default function App() {
         />
       )}
 
-      {screen === 'food-preferences' && (
+      {screen === 'food-preferences' && (userId || isDemoMode) && (
         <FoodPreferencesSetup
           profile={profile}
           onChange={(p) => handleUpdateProfile(p)}
@@ -155,7 +164,7 @@ export default function App() {
         />
       )}
 
-      {screen === 'budget' && (
+      {screen === 'budget' && (userId || isDemoMode) && (
         <BudgetSetup
           profile={profile}
           onChange={(p) => handleUpdateProfile(p)}
