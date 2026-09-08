@@ -10,6 +10,7 @@ import Insights from '../views/Insights'
 import Alerts from '../views/Alerts'
 import Profile from '../views/Profile'
 import Settings from '../views/Settings'
+import SmartwatchWidget from '../components/SmartwatchWidget'
 import { useSensorData } from '../hooks/useSensorData'
 import { fetchAlerts } from '../services/alertService'
 
@@ -225,6 +226,7 @@ export default function Dashboard({ profile, userId, isDemoMode = false, onUpdat
           )}
         </main>
       </div>
+      {view === 'home' && <SmartwatchWidget />}
     </div>
   )
 }
