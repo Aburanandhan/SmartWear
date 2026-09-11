@@ -1,4 +1,5 @@
 export type MotionState = 'REST' | 'WALK' | 'RUN' | 'HIGH_INTENSITY' | 'RECOVERY'
+export type HardwareConnectionStatus = 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED' | 'ERROR'
 
 export interface SensorReading {
   id?: string
@@ -13,6 +14,16 @@ export interface SensorReading {
   workoutActive: boolean
 }
 
+export function hasValidSensorReading(reading?: Partial<SensorReading> | null): boolean {
+  if (!reading || !reading.timestamp) return false
+
+  const numericValues = [reading.temperature, reading.heartRate, reading.spo2, reading.steps]
+  const hasAnyRealValue = numericValues.some((value) => typeof value === 'number' && !Number.isNaN(value) && value > 0)
+  const hasMotion = !!reading.motion && reading.motion !== 'REST'
+
+  return hasAnyRealValue || hasMotion
+}
+
 export interface SensorSource {
   name: string
   isSimulated: boolean
@@ -21,4 +32,5 @@ export interface SensorSource {
   setMotionState: (state: MotionState) => void
   setWorkoutActive: (active: boolean) => void
   isConnected: () => boolean
+  getConnectionStatus?: () => HardwareConnectionStatus
 }

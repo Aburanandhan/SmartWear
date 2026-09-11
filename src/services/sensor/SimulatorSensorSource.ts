@@ -1,4 +1,4 @@
-import type { SensorReading, SensorSource, MotionState } from './types'
+import type { SensorReading, SensorSource, MotionState, HardwareConnectionStatus } from './types'
 
 export class SimulatorSensorSource implements SensorSource {
   public readonly name = 'SIMULATED DEVICE (OFF)'
@@ -25,6 +25,10 @@ export class SimulatorSensorSource implements SensorSource {
 
   public isConnected(): boolean {
     return false
+  }
+
+  public getConnectionStatus(): HardwareConnectionStatus {
+    return 'DISCONNECTED'
   }
 
   public getCurrentReading(): SensorReading {

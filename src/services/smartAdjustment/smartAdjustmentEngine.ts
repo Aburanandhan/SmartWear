@@ -2,6 +2,7 @@ import type { EngineInput, SmartAdjustment, BudgetAdjustment } from './types'
 import { DEFAULT_THRESHOLDS, CATEGORY_LABELS } from './rules'
 import type { CategoryKey } from '../../utils/budgetUtils'
 import { supabase } from '../../lib/supabase'
+import { hasValidSensorReading } from '../../services/sensor/types'
 
 const STORAGE_KEY_PREFIX = 'smartwear_smart_adjustments_'
 
@@ -20,7 +21,7 @@ export function evaluateSmartAdjustment(
   const smartReallocation = profile.smartReallocation !== false
 
   // If no live sensor signal and no active workout, no adjustment triggered
-  if (!reading || (reading.heartRate === 0 && reading.temperature === 0 && !workoutActive)) {
+  if (!reading || !hasValidSensorReading(reading) || (!workoutActive && !hasValidSensorReading(reading))) {
     return null
   }
 

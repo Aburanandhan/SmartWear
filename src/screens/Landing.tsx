@@ -163,51 +163,36 @@ export default function Landing({ onStart, onDemo, onOpenAuth }: Props) {
             <div className="card p-8 relative" style={{ width: 340, background: 'white' }}>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#0d9488', fontFamily: 'Sora, sans-serif' }}>SmartWear Belt v2</p>
-                  <p className="text-sm" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>ESP32 · BLE 5.0</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#0d9488', fontFamily: 'Sora, sans-serif' }}>SmartWear Belt</p>
+                  <p className="text-sm" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>Hardware not connected</p>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                  <span className="pulse-dot w-1.5 h-1.5 rounded-full" style={{ background: '#16a34a' }}></span>
-                  Live
-                </div>
-              </div>
-
-              <div className="rounded-2xl p-5 mb-5" style={{ background: 'linear-gradient(135deg, #0f766e, #0d9488)' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-16 h-4 rounded-full opacity-60" style={{ background: 'rgba(255,255,255,0.3)' }} />
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                      <path d="M5 12h14M12 5l7 7-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-3 rounded-full flex-1" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }} />
-                  <div className="w-12 h-6 rounded-lg" style={{ background: 'rgba(255,255,255,0.9)' }}>
-                    <div className="w-full h-full rounded-lg flex items-center justify-center">
-                      <div className="w-6 h-1.5 rounded-full" style={{ background: '#0d9488' }} />
-                    </div>
-                  </div>
-                  <div className="h-3 rounded-full flex-1" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }} />
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.7)', fontFamily: 'Inter, sans-serif' }}>Body/Skin Temperature</p>
-                  <p className="font-mono-data text-2xl font-bold text-white">36.8°C</p>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#ef4444' }}></span>
+                  Offline
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Heart Rate', val: '78', unit: 'BPM', color: '#ef4444', bg: '#fee2e2' },
-                  { label: 'SpO₂', val: '98', unit: '%', color: '#3b82f6', bg: '#dbeafe' },
-                  { label: 'Steps', val: '6.8K', unit: 'today', color: '#0d9488', bg: '#ccfbf1' },
-                ].map((m) => (
-                  <div key={m.label} className="rounded-xl p-3 text-center" style={{ background: m.bg }}>
-                    <p className="font-mono-data font-bold text-base" style={{ color: m.color }}>{m.val}</p>
-                    <p className="text-xs" style={{ color: m.color, opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>{m.unit}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif', fontSize: 10 }}>{m.label}</p>
-                  </div>
-                ))}
+              <div className="rounded-2xl p-5 mb-5" style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)' }}>
+                <div className="text-center space-y-3">
+                  <div className="text-3xl">🔴</div>
+                  <p className="text-base font-semibold" style={{ color: '#0f172a', fontFamily: 'Sora, sans-serif' }}>Not connected</p>
+                  <p className="text-sm" style={{ color: '#64748b', fontFamily: 'Inter, sans-serif' }}>Connect your SmartWear wearable after signing in.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-wide" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>Temperature</p>
+                  <p className="mt-1 text-sm font-medium" style={{ color: '#0f172a', fontFamily: 'Inter, sans-serif' }}>Not available</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-wide" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>Heart Rate</p>
+                  <p className="mt-1 text-sm font-medium" style={{ color: '#0f172a', fontFamily: 'Inter, sans-serif' }}>Not available</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-wide" style={{ color: '#64748b', fontFamily: 'Sora, sans-serif' }}>SpO₂</p>
+                  <p className="mt-1 text-sm font-medium" style={{ color: '#0f172a', fontFamily: 'Inter, sans-serif' }}>Not available</p>
+                </div>
               </div>
             </div>
           </div>

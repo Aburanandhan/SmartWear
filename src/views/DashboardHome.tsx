@@ -153,19 +153,10 @@ export default function DashboardHome({
 
   // Evaluate Smart Adjustment safely with live sensor reading
   const pendingAdjustment = useMemo(() => {
-    if (!profile) return null
+    if (!profile || !sensorReading) return null
     return evaluateSmartAdjustment({
-      sensorReading: sensorReading || {
-        heartRate: 158,
-        temperature: 37.2,
-        spo2: 98,
-        motion: 'HIGH_INTENSITY',
-        steps: 1200,
-        workoutActive: true,
-        deviceId: 'live-stream',
-        timestamp: new Date().toISOString(),
-      },
-      workoutActive: sensorReading?.workoutActive ?? true,
+      sensorReading,
+      workoutActive: sensorReading.workoutActive ?? false,
       profile,
       hydrationToday,
       expenses,
@@ -244,7 +235,7 @@ export default function DashboardHome({
         temperature: sensorReading.temperature,
         spo2: sensorReading.spo2,
         motion: sensorReading.motion,
-      } : (pendingAdjustment ? pendingAdjustment.sensorContext : null),
+      } : null,
     })
   }, [profile, expenses, hydrationToday, sensorReading, pendingAdjustment])
 

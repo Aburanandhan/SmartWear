@@ -1,12 +1,12 @@
-import type { SensorReading, SensorSource, MotionState } from './types'
+import type { SensorReading, SensorSource, MotionState, HardwareConnectionStatus } from './types'
 
 export class ESP32SensorSource implements SensorSource {
   public get name(): string {
-    return this.connected ? 'WEARABLE CONNECTED' : 'No live sensor connected'
+    return this.connectionStatus === 'CONNECTED' ? 'SmartWear Belt' : 'SmartWear Belt'
   }
   public readonly isSimulated = false
 
-  private connected = false
+  private connectionStatus: HardwareConnectionStatus = 'DISCONNECTED'
   private device: any = null
   private listeners: Set<(reading: SensorReading) => void> = new Set()
 
@@ -22,11 +22,15 @@ export class ESP32SensorSource implements SensorSource {
   }
 
   public isConnected(): boolean {
-    return this.connected
+    return this.connectionStatus === 'CONNECTED'
+  }
+
+  public getConnectionStatus(): HardwareConnectionStatus {
+    return this.connectionStatus
   }
 
   public updateRealReading(reading: Partial<SensorReading>) {
-    this.connected = true
+    this.connectionStatus = 'CONNECTED'
     this.lastReading = {
       ...this.lastReading,
       ...reading,
@@ -36,14 +40,14 @@ export class ESP32SensorSource implements SensorSource {
   }
 
   public setMotionState(state: MotionState) {
-    if (this.connected) {
+    if (this.connectionStatus === 'CONNECTED') {
       this.lastReading.motion = state
       this.listeners.forEach((cb) => cb(this.getCurrentReading()))
     }
   }
 
   public setWorkoutActive(active: boolean) {
-    if (this.connected) {
+    if (this.connectionStatus === 'CONNECTED') {
       this.lastReading.workoutActive = active
       this.listeners.forEach((cb) => cb(this.getCurrentReading()))
     }
@@ -59,19 +63,22 @@ export class ESP32SensorSource implements SensorSource {
   public async connectBLE(): Promise<boolean> {
     if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
       console.warn('Web Bluetooth API not supported in this browser context.')
+      this.connectionStatus = 'ERROR'
       return false
     }
 
     try {
+      this.connectionStatus = 'CONNECTING'
       this.device = await (navigator as any).bluetooth.requestDevice({
         filters: [{ namePrefix: 'SmartWear' }],
         optionalServices: ['heart_rate', 'health_thermometer', 'battery_service'],
       })
-      this.connected = true
+      this.connectionStatus = 'CONNECTED'
       this.listeners.forEach((cb) => cb(this.getCurrentReading()))
       return true
     } catch (err) {
       console.error('BLE connection attempt:', err)
+      this.connectionStatus = 'ERROR'
       return false
     }
   }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { UserProfile } from '../App'
 import { GOAL_LABELS } from '../App'
-import type { SensorReading, SensorSource, MotionState } from '../services/sensor/types'
+import { hasValidSensorReading, type SensorReading, type SensorSource, type MotionState } from '../services/sensor/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { saveWorkout, type WorkoutSession } from '../services/workoutService'
 import { fetchTodayHydration, logHydrationIntake } from '../services/hydrationService'
@@ -60,23 +60,16 @@ export default function LiveMonitoring({
   const [hydrationToday, setHydrationToday] = useState(1650)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
 
+  const hasLiveReading = sensorSource.isConnected() && hasValidSensorReading(reading)
+
   // Evaluate live Smart Adjustment condition from real sensor stream
-  const liveAdjustment = evaluateSmartAdjustment({
-    sensorReading: reading.heartRate > 0 || reading.temperature > 0 ? reading : {
-      heartRate: 154,
-      temperature: 37.2,
-      spo2: 98,
-      motion: 'HIGH_INTENSITY',
-      steps: 1800,
-      workoutActive: true,
-      deviceId: sensorSource.name,
-      timestamp: new Date().toISOString(),
-    },
+  const liveAdjustment = hasLiveReading ? evaluateSmartAdjustment({
+    sensorReading: reading,
     workoutActive: true,
     profile,
     hydrationToday,
     expenses: [],
-  })
+  }) : null
 
   // My Workout state
   const [isWorkoutActive, setIsWorkoutActive] = useState(false)
@@ -183,16 +176,18 @@ export default function LiveMonitoring({
     setElapsedSeconds(0)
   }
 
-  const chartData = history
-    .filter((item) => item.heartRate > 0)
-    .map((item, idx) => ({
-      time: item.timestamp
-        ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        : `${idx * 2.5}s`,
-      heartRate: item.heartRate,
-      temperature: item.temperature,
-      spo2: item.spo2,
-    }))
+  const chartData = hasLiveReading
+    ? history
+        .filter((item) => hasValidSensorReading(item))
+        .map((item, idx) => ({
+          time: item.timestamp
+            ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            : `${idx * 2.5}s`,
+          heartRate: item.heartRate,
+          temperature: item.temperature,
+          spo2: item.spo2,
+        }))
+    : []
 
   const formatSecs = (secs: number) => {
     const mins = Math.floor(secs / 60)
@@ -331,10 +326,10 @@ export default function LiveMonitoring({
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${sensorSource.isConnected() ? 'bg-emerald-500 pulse-dot' : 'bg-slate-400'}`} />
               <span className="font-bold text-sm text-teal-900" style={{ fontFamily: 'Sora, sans-serif' }}>
-                LIVE TELEMETRY STREAM
+                {sensorSource.isConnected() ? 'LIVE TELEMETRY STREAM' : 'SMARTWEAR BELT'}
               </span>
               <span className="text-xs text-teal-700 font-medium">
-                · {sensorSource.isConnected() ? "Viewing live wearable telemetry" : "Waiting for sensor data"}
+                {sensorSource.isConnected() ? '· Viewing live wearable telemetry' : '· Not connected'}
               </span>
             </div>
 
@@ -366,12 +361,12 @@ export default function LiveMonitoring({
               <p className="text-xs font-bold uppercase text-slate-500 mb-1" style={{ fontFamily: 'Sora, sans-serif' }}>Heart Rate</p>
               <div className="flex items-baseline gap-1">
                 <span className="font-mono-data text-3xl font-bold text-red-500">
-                  {reading.heartRate > 0 ? reading.heartRate : '--'}
+                  {hasLiveReading ? reading.heartRate : 'Not available'}
                 </span>
-                {reading.heartRate > 0 && <span className="text-xs text-slate-500 font-semibold">BPM</span>}
+                {hasLiveReading && <span className="text-xs text-slate-500 font-semibold">BPM</span>}
               </div>
               <p className="text-xs text-slate-400 mt-2 truncate">
-                {reading.heartRate > 0 ? `State: ${reading.motion}` : 'Waiting for sensor data'}
+                {hasLiveReading ? `State: ${reading.motion}` : 'Not available'}
               </p>
             </div>
 
@@ -380,12 +375,12 @@ export default function LiveMonitoring({
               <p className="text-xs font-bold uppercase text-slate-500 mb-1" style={{ fontFamily: 'Sora, sans-serif' }}>Body/Skin Temp</p>
               <div className="flex items-baseline gap-1">
                 <span className="font-mono-data text-3xl font-bold text-teal-600">
-                  {reading.temperature > 0 ? reading.temperature : '--'}
+                  {hasLiveReading ? reading.temperature : 'Not available'}
                 </span>
-                {reading.temperature > 0 && <span className="text-xs text-slate-500 font-semibold">°C</span>}
+                {hasLiveReading && <span className="text-xs text-slate-500 font-semibold">°C</span>}
               </div>
               <p className="text-xs text-slate-400 mt-2 truncate">
-                {reading.temperature > 0 ? 'Continuous Probe' : 'No live sensor connected'}
+                {hasLiveReading ? 'Continuous Probe' : 'Not available'}
               </p>
             </div>
 
@@ -394,12 +389,12 @@ export default function LiveMonitoring({
               <p className="text-xs font-bold uppercase text-slate-500 mb-1" style={{ fontFamily: 'Sora, sans-serif' }}>SpO₂ Level</p>
               <div className="flex items-baseline gap-1">
                 <span className="font-mono-data text-3xl font-bold text-blue-600">
-                  {reading.spo2 > 0 ? reading.spo2 : '--'}
+                  {hasLiveReading ? reading.spo2 : 'Not available'}
                 </span>
-                {reading.spo2 > 0 && <span className="text-xs text-slate-500 font-semibold">%</span>}
+                {hasLiveReading && <span className="text-xs text-slate-500 font-semibold">%</span>}
               </div>
               <p className="text-xs text-slate-400 mt-2 truncate">
-                {reading.spo2 > 0 ? 'Pulse Oximeter' : 'Waiting for sensor data'}
+                {hasLiveReading ? 'Pulse Oximeter' : 'Not available'}
               </p>
             </div>
 
@@ -415,7 +410,7 @@ export default function LiveMonitoring({
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 truncate">
-                {reading.steps > 0 ? `${reading.steps} Total Steps` : 'No live sensor connected'}
+                {hasLiveReading ? `${reading.steps} Total Steps` : 'Not available'}
               </p>
             </div>
 
@@ -442,7 +437,7 @@ export default function LiveMonitoring({
                 <span className="font-bold text-xs text-slate-800 truncate">{sensorSource.name}</span>
               </div>
               <p className="text-xs text-slate-400 mt-2 truncate">
-                {sensorSource.isConnected() ? 'BLE Connected' : 'No Live Sensor Connected'}
+                {sensorSource.isConnected() ? 'Connected' : 'Not connected'}
               </p>
             </div>
           </div>
@@ -455,7 +450,7 @@ export default function LiveMonitoring({
                   Real-time Biometric Stream Graph
                 </h3>
                 <p className="text-xs text-slate-400">
-                  {sensorSource.isConnected() ? 'Continuous telemetry feed (Heart Rate & Skin Temperature)' : 'Waiting for sensor data connection...'}
+                  {sensorSource.isConnected() ? 'Continuous telemetry feed (Heart Rate & Skin Temperature)' : 'No live sensor data available'}
                 </p>
               </div>
               <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-mono-data font-semibold">
@@ -537,25 +532,25 @@ export default function LiveMonitoring({
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-xs text-slate-400 font-semibold uppercase">Heart Rate</p>
                   <p className="font-mono-data text-xl font-bold text-red-500">
-                    {reading.heartRate > 0 ? `${reading.heartRate} BPM` : 'Waiting...'}
+                    {hasLiveReading ? `${reading.heartRate} BPM` : 'Not available'}
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-xs text-slate-400 font-semibold uppercase">Body/Skin Temp</p>
                   <p className="font-mono-data text-xl font-bold text-teal-600">
-                    {reading.temperature > 0 ? `${reading.temperature}°C` : 'Waiting...'}
+                    {hasLiveReading ? `${reading.temperature}°C` : 'Not available'}
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-xs text-slate-400 font-semibold uppercase">SpO₂</p>
                   <p className="font-mono-data text-xl font-bold text-blue-600">
-                    {reading.spo2 > 0 ? `${reading.spo2}%` : 'Waiting...'}
+                    {hasLiveReading ? `${reading.spo2}%` : 'Not available'}
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-xs text-slate-400 font-semibold uppercase">Activity State</p>
                   <p className="font-mono-data text-base font-bold text-amber-600 truncate">
-                    {reading.heartRate > 0 ? reading.motion : 'Active'}
+                    {hasLiveReading ? reading.motion : 'Not available'}
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
