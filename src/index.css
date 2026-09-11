@@ -17,6 +17,16 @@
   --color-sidebar: #0f766e;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 :root {
   font-family: 'Inter', system-ui, sans-serif;
   background-color: #f0fdf9;
