@@ -8,6 +8,7 @@ import {
   type FilterOptions,
 } from '../lib/food-filter-engine'
 import type { DietType, MealType } from '../data/foods'
+import { calculateDailyNutrition, createFoodLogEntry, type FoodLogEntry } from '../services/nutrition/nutritionService'
 
 interface Props {
   profile: UserProfile
@@ -21,6 +22,15 @@ export default function Nutrition({ profile, reading, userId }: Props) {
   const [showPipeline, setShowPipeline] = useState(false)
   const [showAlgoInfo, setShowAlgoInfo] = useState(false)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [foodLogs, setFoodLogs] = useState<FoodLogEntry[]>(() => {
+    if (typeof window === 'undefined') return []
+    const stored = window.localStorage.getItem('smartwear-food-logs')
+    try {
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
 
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     dietType: profile.dietType || 'vegetarian',
@@ -38,6 +48,27 @@ export default function Nutrition({ profile, reading, userId }: Props) {
     loadExpenses()
   }, [userId])
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('smartwear-food-logs', JSON.stringify(foodLogs))
+    }
+  }, [foodLogs])
+
+  const nutritionSummary = useMemo(
+    () =>
+      calculateDailyNutrition(foodLogs, {
+        goal: profile.goal,
+        age: profile.age,
+        height: profile.height,
+        weight: profile.weight,
+        activityLevel: profile.activityLevel,
+        dietType: profile.dietType,
+      }),
+    [foodLogs, profile]
+  )
+
+  const hasLoggedFood = foodLogs.length > 0
+
   // Memoize recommendation output for performance
   const engineOutput = useMemo(() => {
     return rankPersonalizedFoods(profile, expenses, reading, filterOptions, simulatedBudgetOverride)
@@ -53,6 +84,21 @@ export default function Nutrition({ profile, reading, userId }: Props) {
     setFilterOptions((prev) => ({ ...prev, mealType: meal }))
   }
 
+  const handleLogMeal = (meal: { id?: string; name: string; calories?: number | null; protein?: number | null; carbohydrates?: number | null; fat?: number | null; fiber?: number | null }) => {
+    const entry = createFoodLogEntry({
+      foodId: meal.id || null,
+      foodName: meal.name,
+      quantity: 1,
+      servingSize: '1 serving',
+      calories: meal.calories ?? null,
+      protein: meal.protein ?? null,
+      carbohydrates: meal.carbohydrates ?? null,
+      fat: meal.fat ?? null,
+      fiber: meal.fiber ?? null,
+    })
+    setFoodLogs((prev) => [entry, ...prev])
+  }
+
   const resetFilters = () => {
     setFilterOptions({
       dietType: profile.dietType || 'vegetarian',
@@ -64,8 +110,91 @@ export default function Nutrition({ profile, reading, userId }: Props) {
     setSimulatedBudgetOverride(undefined)
   }
 
+  const renderMetric = (label: string, value: number | null, unit: string, target: number | null, color: string) => {
+    const current = typeof value === 'number' ? value : 0
+    const cap = target && target > 0 ? target : 1
+    const pct = target && target > 0 ? Math.min(100, (current / target) * 100) : 0
+
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold uppercase text-slate-500">{label}</span>
+          <span className="font-mono-data text-xs font-semibold text-slate-700">
+            {typeof value === 'number' ? `${value}${unit}` : 'Not available'}
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500">
+          {typeof target === 'number' ? `${current}${unit} / ${target}${unit}` : 'No target available'}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      <div className="card p-5">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+              My Nutrition
+            </h3>
+            <p className="text-sm text-slate-500">Today&apos;s progress</p>
+          </div>
+          {profile.preferredFoods?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {profile.preferredFoods.slice(0, 6).map((item) => (
+                <span key={item} className="rounded-full bg-teal-50 border border-teal-200 px-2.5 py-1 text-[11px] font-semibold text-teal-800">
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-slate-500">No preferred foods selected yet.</div>
+          )}
+        </div>
+
+        {hasLoggedFood ? (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            {renderMetric('Calories', nutritionSummary.totals.calories, ' kcal', nutritionSummary.targets.calories, '#14b8a6')}
+            {renderMetric('Protein', nutritionSummary.totals.protein, 'g', nutritionSummary.targets.protein, '#22c55e')}
+            {renderMetric('Carbohydrates', nutritionSummary.totals.carbohydrates, 'g', nutritionSummary.targets.carbohydrates, '#3b82f6')}
+            {renderMetric('Fat', nutritionSummary.totals.fat, 'g', nutritionSummary.targets.fat, '#f59e0b')}
+            {renderMetric('Fiber', nutritionSummary.totals.fiber, 'g', nutritionSummary.targets.fiber, '#a855f7')}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-slate-600">
+            <p className="font-semibold text-slate-800">No food logged</p>
+            <p className="text-sm text-slate-500">Start tracking your meals to see your nutrition progress.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="card p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+            Recommended For You
+          </h3>
+          <span className="text-xs text-slate-500">Prioritizes your selected preferences</span>
+        </div>
+
+        {profile.preferredFoods?.length ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {profile.preferredFoods.map((food) => (
+              <span key={food} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700">
+                {food}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            You haven&apos;t selected your preferred foods yet.
+          </div>
+        )}
+      </div>
+
       {/* 1. "YOUR BUDGET → YOUR FOOD" Visual Hero Banner */}
       <div
         className="card p-6 border-2 relative overflow-hidden shadow-sm"
@@ -573,9 +702,18 @@ export default function Nutrition({ profile, reading, userId }: Props) {
                   {/* Footer price & prep time */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                     <span className="text-xs text-slate-400">Prep time: {meal.preparationTime} mins</span>
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400 block">Estimated Cost</span>
-                      <span className="font-mono-data text-lg font-bold text-teal-700">₹{meal.estimatedCost}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleLogMeal(meal)}
+                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[11px] font-semibold text-teal-800"
+                      >
+                        Log Food
+                      </button>
+                      <div className="text-right">
+                        <span className="text-xs text-slate-400 block">Estimated Cost</span>
+                        <span className="font-mono-data text-lg font-bold text-teal-700">₹{meal.estimatedCost}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,21 @@
 import { supabase } from '../lib/supabase'
 import type { UserProfile } from '../App'
+import { normalizeFoodId } from './nutrition/foodDatabase'
+
+function normalizePreferredFoods(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .map((entry) => {
+      if (typeof entry === 'string') return entry
+      if (entry && typeof entry === 'object') {
+        const maybeName = (entry as Record<string, unknown>).name
+        if (typeof maybeName === 'string' && maybeName.trim()) return maybeName.trim()
+      }
+      return null
+    })
+    .filter((value): value is string => Boolean(value))
+}
 
 export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
   try {
@@ -43,7 +59,7 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
       dietType: profileData.diet_type || 'vegetarian',
       foodStyle: profileData.food_style || 'mixed-indian',
       excludedFoods: Array.isArray(profileData.excluded_foods) ? profileData.excluded_foods : [],
-      preferredFoods: Array.isArray(profileData.preferred_foods) ? profileData.preferred_foods : [],
+      preferredFoods: normalizePreferredFoods(profileData.preferred_foods),
     }
   } catch (err) {
     console.error('Error in fetchUserProfile:', err)
@@ -53,6 +69,14 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 
 export async function saveUserProfile(userId: string, profile: UserProfile): Promise<boolean> {
   try {
+    const preferredFoodsPayload = (profile.preferredFoods || []).map((foodName) => {
+      const name = String(foodName || '').trim()
+      return {
+        food_id: normalizeFoodId(name) || `user-food-${Date.now()}`,
+        name,
+      }
+    }).filter((entry) => entry.name)
+
     const profilePayload = {
       id: userId,
       goal: profile.goal,
@@ -64,7 +88,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile): Pro
       diet_type: profile.dietType || 'vegetarian',
       food_style: profile.foodStyle || 'mixed-indian',
       excluded_foods: profile.excludedFoods || [],
-      preferred_foods: profile.preferredFoods || [],
+      preferred_foods: preferredFoodsPayload,
       updated_at: new Date().toISOString(),
     }
 
