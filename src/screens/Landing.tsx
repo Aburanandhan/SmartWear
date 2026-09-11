@@ -128,7 +128,7 @@ export default function Landing({ onStart, onDemo, onOpenAuth }: Props) {
 
             {/* Floating badges */}
             <div className="absolute -top-4 -right-6 card px-3 py-2 text-sm font-semibold" style={{ fontFamily: 'Sora, sans-serif', color: '#0f766e', fontSize: 12 }}>
-              🔋 94% Battery
+              🔋
             </div>
             <div className="absolute -bottom-4 -left-6 card px-3 py-2 text-sm" style={{ fontFamily: 'Inter, sans-serif', color: '#64748b', fontSize: 12 }}>
               📡 SIMULATED DEVICE
